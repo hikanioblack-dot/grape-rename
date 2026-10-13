@@ -1,0 +1,3 @@
+"NSDownloadsFolderUsageDescription" = "Выбор и переименование файлов в Загрузках с сохранением даты изменения.";
+"NSDesktopFolderUsageDescription" = "Выбор и переименование файлов на рабочем столе с сохранением даты изменения.";
+"NSDocumentsFolderUsageDescription" = "Выбор и переименование файлов в Документах с сохранением даты изменения.";

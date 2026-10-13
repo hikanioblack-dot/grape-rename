@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="340" viewBox="0 0 1280 340" role="img" aria-labelledby="title desc">
+<title id="title">Grape Rename</title><desc id="desc">Clean names. Your order. Native macOS batch renaming.</desc>
+<defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#171024"/><stop offset="1" stop-color="#352053"/></linearGradient><linearGradient id="grape" x2="1" y2="1"><stop stop-color="#dc71ff"/><stop offset="1" stop-color="#8741dc"/></linearGradient></defs>
+<rect width="1280" height="340" rx="28" fill="url(#bg)"/>
+<circle cx="1150" cy="30" r="170" fill="#b669ec" opacity=".07"/><circle cx="940" cy="340" r="160" fill="#b669ec" opacity=".06"/>
+<g font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif">
+<text x="64" y="74" fill="#cdb1ed" font-size="15" font-weight="600" letter-spacing="3">NATIVE macOS APP</text>
+<text x="62" y="157" fill="#fff" font-size="66" font-weight="700" letter-spacing="-2">Grape Rename</text>
+<text x="66" y="205" fill="#e2d2f2" font-size="26">Clean names. Your order.</text>
+<rect x="66" y="250" width="310" height="36" rx="18" fill="#a264e2" opacity=".22"/>
+<text x="86" y="274" fill="#e8d9fa" font-size="14">PREVIEW · RENAME · RESTORE</text></g>
+<rect x="800" y="57" width="405" height="224" rx="22" fill="#fff" opacity=".06" stroke="#d3b4ef" stroke-opacity=".2"/>
+<g font-family="SFMono-Regular,Consolas,monospace" font-size="22" fill="#eee4fa">
+<text x="845" y="115">Grape_0001.jpg</text><text x="845" y="180">Grape_0002.png</text><text x="845" y="245">Grape_0003.pdf</text></g>
+<path d="M828 135H1177M828 200H1177" stroke="#dbc6ef" stroke-opacity=".14"/>
+<circle cx="1150" cy="106" r="14" fill="url(#grape)"/><circle cx="1150" cy="171" r="14" fill="url(#grape)"/><circle cx="1150" cy="236" r="14" fill="url(#grape)"/>
+</svg>

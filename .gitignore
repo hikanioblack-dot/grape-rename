@@ -1,0 +1,10 @@
+dist/
+.build/
+*.dmg
+*.app/
+*.zip
+.DS_Store
+._*
+.swiftpm/
+.vscode/
+.idea/

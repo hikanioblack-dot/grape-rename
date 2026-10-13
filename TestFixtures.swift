@@ -1,0 +1,64 @@
+import Foundation
+import CoreGraphics
+import ImageIO
+import UniformTypeIdentifiers
+
+enum TestFixtures {
+    static func image(_ url: URL, type: UTType, color: (CGFloat, CGFloat, CGFloat), date: String? = nil) throws {
+        let width = 640, height = 420
+        let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        context.setFillColor(CGColor(red: color.0, green: color.1, blue: color.2, alpha: 1)); context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        context.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 0.75)); context.fillEllipse(in: CGRect(x: 380, y: 255, width: 110, height: 110))
+        context.setFillColor(CGColor(red: color.0 * 0.4, green: color.1 * 0.5, blue: color.2 * 0.6, alpha: 1))
+        context.move(to: CGPoint(x: 0, y: 0)); context.addLine(to: CGPoint(x: 190, y: 240)); context.addLine(to: CGPoint(x: 390, y: 0)); context.closePath(); context.fillPath()
+        context.move(to: CGPoint(x: 230, y: 0)); context.addLine(to: CGPoint(x: 450, y: 190)); context.addLine(to: CGPoint(x: 640, y: 0)); context.closePath(); context.fillPath()
+        guard let image = context.makeImage(), let destination = CGImageDestinationCreateWithURL(url as CFURL, type.identifier as CFString, 1, nil) else { throw RenameError.message("Fixture image creation failed") }
+        var properties: [CFString: Any] = [kCGImageDestinationLossyCompressionQuality: 0.86]
+        if let date {
+            properties[kCGImagePropertyExifDictionary] = [kCGImagePropertyExifDateTimeOriginal: date, "OffsetTimeOriginal" as CFString: "+03:00", kCGImagePropertyExifFNumber: 2.8, kCGImagePropertyExifExposureTime: 0.004, kCGImagePropertyExifISOSpeedRatings: [200]] as [CFString: Any]
+            properties[kCGImagePropertyTIFFDictionary] = [kCGImagePropertyTIFFMake: "Grape", kCGImagePropertyTIFFModel: "Test Camera"]
+        }
+        CGImageDestinationAddImage(destination, image, properties as CFDictionary)
+        guard CGImageDestinationFinalize(destination) else { throw RenameError.message("Fixture image export failed") }
+    }
+    static func create(at root: URL) throws {
+        let fm = FileManager.default
+        guard !fm.fileExists(atPath: root.path) else { throw RenameError.message(L("Тестовая папка уже существует.", "The test folder already exists.")) }
+        try fm.createDirectory(at: root, withIntermediateDirectories: true)
+        try image(root.appendingPathComponent("IMG_0102.jpg"), type: .jpeg, color: (0.25, 0.47, 0.80), date: "2024:06:15 08:09:10")
+        try image(root.appendingPathComponent("IMG_0007.jpg"), type: .jpeg, color: (0.82, 0.36, 0.32), date: "2023:12:31 23:59:58")
+        try image(root.appendingPathComponent("No EXIF.png"), type: .png, color: (0.48, 0.28, 0.70))
+        try image(root.appendingPathComponent("Forest.tiff"), type: .tiff, color: (0.20, 0.56, 0.35))
+        let documents: [String: String] = [
+            "README.txt": "Grape Rename — Test Files\n\nTwo JPG images have EXIF capture dates. PNG and TIFF have none.\nTry grid/list, Space, metadata, presets, find IMG → Photo, EXIF naming, rename and restart to undo.\nФайлы созданы специально для проверки.\n",
+            "Заметки.md": "# Grape Rename\n\nТестовый документ.\n" + String(repeating: "Проверка даты изменения и содержимого.\n", count: 80),
+            "Sales.csv": "date,item,total\n2026-10-01,Grape,25\n2026-10-02,Apple,42\n",
+            "config.json": "{\"application\":\"Grape Rename\",\"test\":true,\"items\":[1,2,3]}\n",
+            "Purple.svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"400\" height=\"280\"><rect width=\"400\" height=\"280\" fill=\"#6c3bb3\"/><circle cx=\"200\" cy=\"140\" r=\"80\" fill=\"#e7d5ff\"/></svg>",
+            "Page.html": "<!doctype html><meta charset=\"utf-8\"><title>Grape</title><h1>Grape Rename</h1><p>Preview test / Проверка просмотра</p>"
+        ]
+        for (name, text) in documents { try Data(text.utf8).write(to: root.appendingPathComponent(name)) }
+        let pdf = root.appendingPathComponent("Two pages.pdf")
+        var page = CGRect(x: 0, y: 0, width: 420, height: 595)
+        guard let context = CGContext(pdf as CFURL, mediaBox: &page, [kCGPDFContextTitle: "Grape Test", kCGPDFContextAuthor: "Grape Rename"] as CFDictionary) else { throw RenameError.message("PDF fixture creation failed") }
+        for i in 0..<2 {
+            context.beginPDFPage(nil)
+            context.setFillColor(CGColor(red: i == 0 ? 0.46 : 0.20, green: 0.3, blue: 0.7, alpha: 1)); context.fill(CGRect(x: 40, y: 380, width: 340, height: 140))
+            context.setFillColor(CGColor(gray: 0.86, alpha: 1))
+            for line in 0..<10 { context.fill(CGRect(x: 40, y: 330 - line * 20, width: 250 + (line % 3) * 20, height: 6)) }
+            context.endPDFPage()
+        }
+        context.closePDF()
+        var audio = Data()
+        func ascii(_ string: String) { audio.append(Data(string.utf8)) }
+        func u32(_ value: UInt32) { var little = value.littleEndian; withUnsafeBytes(of: &little) { audio.append(contentsOf: $0) } }
+        func u16(_ value: UInt16) { var little = value.littleEndian; withUnsafeBytes(of: &little) { audio.append(contentsOf: $0) } }
+        let samples = 8000
+        ascii("RIFF"); u32(UInt32(36 + samples * 2)); ascii("WAVEfmt "); u32(16); u16(1); u16(1); u32(8000); u32(16000); u16(2); u16(16); ascii("data"); u32(UInt32(samples * 2))
+        for i in 0..<samples { u16(UInt16(bitPattern: Int16(sin(Double(i) * 2 * .pi * 440 / 8000) * 2500))) }
+        try audio.write(to: root.appendingPathComponent("Tone.wav"))
+        try Data(repeating: 0x47, count: 32769).write(to: root.appendingPathComponent("Sample.bin"))
+        let urls = try fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil).sorted(by: { $0.lastPathComponent < $1.lastPathComponent })
+        for (i, url) in urls.enumerated() { try fm.setAttributes([.modificationDate: Date(timeIntervalSince1970: 1_700_000_000 + Double(i) * 86400)], ofItemAtPath: url.path) }
+    }
+}

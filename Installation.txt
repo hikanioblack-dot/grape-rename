@@ -1,0 +1,31 @@
+Grape Rename 1.0.7 (build 7)
+
+1. Перетащите Grape Rename.app на папку Applications (Программы).
+2. Запустите приложение из Программ.
+3. После установки извлеките диск Grape Rename в Finder.
+
+Требуется macOS Tahoe 26 или новее и Mac с Apple Silicon.
+
+Это локальная сборка с ad-hoc подписью. Для публичного распространения
+понадобятся подпись Developer ID и нотариальное заверение Apple.
+
+Выбирайте файлы кнопкой или перетаскивайте их из Finder.
+При выборе папки берутся файлы непосредственно в ней, без вложенных папок.
+Перетаскивание в открытый список добавляет файлы к выбранным.
+Для просмотра выделите файл и нажмите пробел; внутри просмотра
+стрелки переключают файлы. Повторный пробел закрывает просмотр.
+
+Даты изменения и содержимое файлов сохраняются.
+История переименований и шаблоны сохраняются после перезапуска.
+Кнопка Отменить / Command-Z восстанавливает последнее переименование.
+Для более старой операции сначала отмените более поздние.
+
+Use Applications to install Grape Rename. Requires macOS 26+ and Apple Silicon.
+The app follows your preferred system language: Russian or English.
+Rename history and saved presets survive app restarts.
+Space opens Quick Look, Command-I reveals the preview and metadata sidebar.
+EXIF naming uses DateTimeOriginal. Without EXIF, no date is added.
+
+Три вида: компактные строки, список с миниатюрами и сетка.
+Справа — предпросмотр выбранного файла и метаданные; кнопку боковой панели можно использовать для скрытия или показа.
+Three views: compact rows, thumbnail list and grid. The right sidebar shows a live preview and read-only metadata.

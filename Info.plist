@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleExecutable</key><string>GrapeRename</string>
+<key>CFBundleIdentifier</key><string>local.grape.rename</string>
+<key>CFBundleName</key><string>Grape Rename</string>
+<key>CFBundleDisplayName</key><string>Grape Rename</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>CFBundleShortVersionString</key><string>1.0.7</string>
+<key>CFBundleVersion</key><string>7</string>
+<key>CFBundleDevelopmentRegion</key><string>en</string>
+<key>CFBundleLocalizations</key><array><string>en</string><string>ru</string></array>
+<key>LSMinimumSystemVersion</key><string>26.0</string>
+<key>NSHighResolutionCapable</key><true/>
+<key>CFBundleIconFile</key><string>AppIcon</string>
+<key>NSDownloadsFolderUsageDescription</key><string>Choose and rename files in Downloads while preserving modification dates.</string>
+<key>NSDesktopFolderUsageDescription</key><string>Choose and rename files on the Desktop while preserving modification dates.</string>
+<key>NSDocumentsFolderUsageDescription</key><string>Choose and rename files in Documents while preserving modification dates.</string>
+</dict></plist>
