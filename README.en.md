@@ -98,7 +98,20 @@ Scanning runs in the background and can be stopped. Optional local caching store
 
 Free to download without signing in. Each release includes `SHA256SUMS.txt`.
 
-This build uses an ad-hoc signature and does not yet have Developer ID signing or Apple notarization. macOS may show a developer verification warning. Signed and notarized releases are part of our plans.
+### First launch and the macOS warning
+
+When opening the downloaded app, macOS may say **Apple could not verify that Grape Rename is free of malware**. This build has an ad-hoc signature, but does not yet have Developer ID signing or Apple notarization. This warning concerns the missing Apple verification; it does not by itself mean malware was detected.
+
+If you downloaded the app from [our official repository](https://github.com/hikanioblack-dot/grape-rename/releases) and choose to allow it:
+
+1. Click **Done** in the warning.
+2. Open **System Settings → Privacy & Security**.
+3. Find the blocked Grape Rename message in the Security section and click **Open Anyway**.
+4. Confirm opening and authenticate with your Mac password or Touch ID if requested.
+
+This permits this specific app; you do not need to disable macOS security globally. See [Apple's official instructions](https://support.apple.com/en-us/102445). If the button is missing, try launching the app again, then return to Settings.
+
+The source code is public, and release assets include a SHA-256 checksum to verify the downloaded DMG's integrity. Developer ID signing and Apple notarization are planned.
 
 ## More to come — including Windows
 
