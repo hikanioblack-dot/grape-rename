@@ -1,4 +1,4 @@
-Grape Rename 1.0.7 (build 7)
+Grape Rename 1.0.8 (build 8)
 
 1. Перетащите Grape Rename.app на папку Applications (Программы).
 2. Запустите приложение из Программ.

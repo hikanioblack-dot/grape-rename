@@ -1,7 +1,7 @@
 import Foundation
 import Darwin
 
-struct FileStamp: Equatable, Codable {
+struct FileStamp: Equatable, Codable, Sendable {
     let device: Int32
     let inode: UInt64
     let size: Int64

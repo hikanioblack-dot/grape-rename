@@ -8,10 +8,10 @@ struct FileRow: Identifiable {
     var stamp: FileStamp
     let originalStem: String
     var metadata: MetadataSnapshot
-    init(url: URL, stamp: FileStamp) {
+    init(url: URL, stamp: FileStamp, readMetadata: Bool = true) {
         self.url = url; self.stamp = stamp
         originalStem = url.deletingPathExtension().lastPathComponent
-        metadata = MetadataReader.read(url)
+        metadata = readMetadata ? MetadataReader.read(url) : MetadataSnapshot()
     }
 }
 enum SortMode: String, CaseIterable, Identifiable {
@@ -60,6 +60,7 @@ final class Model: ObservableObject {
     @Published var presets: [SavedPreset] = []
     @Published var selectedPreset: UUID?
     @Published var showHistory = false
+    @Published var duplicateMode: DuplicateMode?
     @Published var showInspector = true
     @Published var persistenceError = ""
     @Published var busy = false
@@ -131,7 +132,7 @@ final class Model: ObservableObject {
             updateOrigin(); sort()
             if !append { selection = files.first?.id }
             message = append ? L("Добавлено: \(loaded.count - priorCount)", "Added: \(loaded.count - priorCount)") : ""
-            if priorCount == 0 { resizeWindow(loaded: true) }
+
         } catch { fail(error) }
     }
     func updateOrigin() {
@@ -178,6 +179,12 @@ final class Model: ObservableObject {
         sortMode = .manual; selection = files.first(where: { $0.id.uuidString == dragged })?.id; message = ""
     }
     func remove(_ id: UUID) { files.removeAll { $0.id == id }; if selection == id { selection = files.first?.id }; if files.isEmpty { reset() } else { updateOrigin() } }
+    func removeFiles(at urls: Set<URL>) {
+        files.removeAll { urls.contains($0.url) }
+        if !files.contains(where: { $0.id == selection }) { selection = files.first?.id }
+        if files.isEmpty { reset() } else { updateOrigin() }
+        preview.refresh()
+    }
     func rename() {
         guard !busy, let store else { return }
         busy = true; defer { busy = false; synchronizeStorage() }
@@ -242,13 +249,13 @@ final class Model: ObservableObject {
         store.state.presets.removeAll { $0.id == id }
         do { try store.save(); selectedPreset = nil; synchronizeStorage() } catch { store.state = old; fail(error) }
     }
-    func reset() { files = []; selection = nil; message = ""; resizeWindow(loaded: false) }
+    func reset() { files = []; selection = nil; message = ""; origin = "" }
     func revealInspector() { showInspector = true }
     func resizeWindow(loaded: Bool) {
         guard !CommandLine.arguments.contains("--self-test"), !CommandLine.arguments.contains("--prepare-ui-test") else { return }
         guard let app = NSApp, let window = app.windows.first(where: { $0.identifier?.rawValue == "main" }) else { return }
-        window.minSize = loaded ? NSSize(width: 1080, height: 620) : NSSize(width: 520, height: 400)
-        let size = loaded ? NSSize(width: 1280, height: 780) : NSSize(width: 520, height: 400)
+        window.minSize = NSSize(width: 1080, height: 620)
+        let size = NSSize(width: 1280, height: 780)
         var frame = window.frame
         frame.origin.x += (frame.width - size.width) / 2; frame.origin.y += (frame.height - size.height) / 2; frame.size = size
         if let visible = window.screen?.visibleFrame {

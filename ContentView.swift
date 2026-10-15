@@ -11,7 +11,7 @@ struct ContentView: View {
     @State private var draggedFile: UUID?
     @State private var insertion: FileInsertion?
     var body: some View {
-        Group { if model.files.isEmpty { welcome } else { editor } }
+        editor
             .background(Color(nsColor: .windowBackgroundColor))
             .background(PreviewBridge(model: model).frame(width: 0, height: 0))
             .onDrop(of: [UTType.fileURL], isTargeted: $dropTargeted, perform: model.acceptDrop)
@@ -24,6 +24,7 @@ struct ContentView: View {
                 }
             }
             .alert(L("Ошибка", "Error"), isPresented: $model.showError) { Button(L("Понятно", "OK"), role: .cancel) {} } message: { Text(model.errorMessage) }
+            .sheet(item: $model.duplicateMode) { DuplicateFinderView(model: model, mode: $0) }
             .sheet(isPresented: $model.showHistory) { HistoryView(model: model) }
             .sheet(isPresented: $savePreset) { presetSheet }
             .toolbar {
@@ -34,11 +35,11 @@ struct ContentView: View {
                             .padding(.horizontal, 12).frame(maxWidth: 300).fixedSize(horizontal: false, vertical: true).help(model.origin)
                     }
                     ToolbarItem { Button { model.preview.toggle() } label: { Image(systemName: "eye") }.help(L("Просмотр · Пробел", "Quick Look · Space")) }
-                    ToolbarItem {
-                        Button { model.showInspector.toggle() } label: { Image(systemName: "sidebar.right") }
-                            .help(model.showInspector ? L("Скрыть предпросмотр и информацию", "Hide Preview and Information") : L("Показать предпросмотр и информацию", "Show Preview and Information"))
-                    }
                     ToolbarItem { Button(action: model.undo) { Image(systemName: "arrow.uturn.backward") }.disabled(model.undoRecord == nil || !model.persistenceError.isEmpty).help(L("Отменить последнее переименование", "Undo the last rename")) }
+                }
+                ToolbarItem {
+                    Button { model.showInspector.toggle() } label: { Image(systemName: "sidebar.right") }
+                        .help(model.showInspector ? L("Скрыть предпросмотр и информацию", "Hide Preview and Information") : L("Показать предпросмотр и информацию", "Show Preview and Information"))
                 }
                 ToolbarItem { Button { model.showHistory = true } label: { Image(systemName: "clock.arrow.circlepath") }.help(L("История переименований", "Rename history")) }
             }
@@ -48,20 +49,21 @@ struct ContentView: View {
                 model.resizeWindow(loaded: !model.files.isEmpty)
             }
     }
-    private var welcome: some View {
-        VStack(spacing: 20) {
-            if let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"), let icon = NSImage(contentsOf: url) { Image(nsImage: icon).resizable().scaledToFit().frame(width: 88, height: 88) }
-            VStack(spacing: 8) {
-                Text("Grape Rename").font(.system(size: 26, weight: .semibold))
-                Text(L("Аккуратные названия. Ваш порядок.\nИсходные даты остаются на месте.", "Clean names. Your order.\nOriginal dates stay intact."))
-                    .font(.system(size: 13)).foregroundStyle(.secondary).multilineTextAlignment(.center)
+    private var emptyBrowser: some View {
+        VStack(spacing: 18) {
+            Image(systemName: "doc.badge.plus").font(.system(size: 42, weight: .light)).foregroundStyle(GrapeTheme.accent)
+            Text(L("Добавьте файлы для переименования", "Add files to rename")).font(.title3.weight(.semibold)).multilineTextAlignment(.center)
+            Button { model.choose(folder: false) } label: {
+                Label(L("Выбрать файлы", "Choose Files"), systemImage: "doc.on.doc")
+            }.buttonStyle(.glassProminent).controlSize(.large)
+            Button { model.choose(folder: true) } label: {
+                Label(L("Выбрать папку…", "Choose Folder…"), systemImage: "folder")
+            }.buttonStyle(.plain).foregroundStyle(GrapeTheme.accent)
+            Text(L("или перетащите сюда файлы и папки", "or drop files and folders here"))
+                .font(.caption).foregroundStyle(.secondary)
+            if !model.persistenceError.isEmpty {
+                Text(model.persistenceError).font(.caption).foregroundStyle(.orange).lineLimit(3)
             }
-            HStack(spacing: 12) {
-                Button { model.choose(folder: false) } label: { Label(L("Выбрать файлы", "Choose Files"), systemImage: "doc.on.doc") }.buttonStyle(.glassProminent)
-                Button { model.choose(folder: true) } label: { Label(L("Выбрать папку", "Choose Folder"), systemImage: "folder") }.buttonStyle(.glass)
-            }.controlSize(.large)
-            Text(L("или перетащите сюда файлы и папки", "or drop files and folders here")).font(.caption).foregroundStyle(.secondary)
-            if !model.persistenceError.isEmpty { Text(model.persistenceError).font(.caption).foregroundStyle(.orange).lineLimit(3) }
         }.padding(28).frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     private var editor: some View {
@@ -69,7 +71,7 @@ struct ContentView: View {
             HStack(spacing: 0) {
                 sidebar.frame(width: 260)
                 Divider()
-                browser.frame(maxWidth: .infinity, maxHeight: .infinity)
+                Group { if model.files.isEmpty { emptyBrowser } else { browser } }.frame(maxWidth: .infinity, maxHeight: .infinity)
                 if model.showInspector { Divider(); FileInspector(model: model).frame(width: 300) }
             }
             Divider()
@@ -80,61 +82,83 @@ struct ContentView: View {
         Label(title, systemImage: icon).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
     }
     private var sidebar: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                VStack(alignment: .leading, spacing: 10) {
-                    sectionHeader(L("Шаблоны", "Presets"), icon: "slider.horizontal.3")
-                    Picker(L("Шаблон", "Preset"), selection: Binding(get: { model.selectedPreset }, set: { model.applyPreset($0) })) {
-                        Text(L("Свои настройки", "Custom settings")).tag(nil as UUID?)
-                        ForEach(model.presets) { Text($0.name).tag(Optional($0.id)) }
-                    }.labelsHidden().frame(maxWidth: .infinity, alignment: .leading)
-                    HStack {
-                        Button(L("Сохранить…", "Save As…")) { presetName = ""; presetError = ""; savePreset = true }
-                        if model.selectedPreset != nil {
-                            Button { model.updatePreset() } label: { Image(systemName: "arrow.triangle.2.circlepath") }.help(L("Обновить шаблон", "Update preset"))
-                            Button { model.deletePreset() } label: { Image(systemName: "trash") }.help(L("Удалить шаблон", "Delete preset"))
-                        }
-                    }.controlSize(.small)
-                }
-                Divider()
-                VStack(alignment: .leading, spacing: 10) {
-                    sectionHeader(L("Название", "Name"), icon: "textformat")
-                    TextField(L("Общее название / префикс", "Common name / prefix"), text: $model.options.prefix)
-                    HStack { Text(L("Разделитель", "Separator")); Spacer(); TextField("_", text: $model.options.separator).frame(width: 74) }
-                    Toggle(L("Оставить исходное имя", "Keep original name"), isOn: $model.options.keepName)
-                }
-                VStack(alignment: .leading, spacing: 10) {
-                    Toggle(L("Нумерация", "Numbering"), isOn: $model.options.numbering).fontWeight(.medium)
-                    HStack { Text(L("Начать с", "Start at")); Spacer(); TextField("1", value: $model.options.start, format: .number.grouping(.never)).frame(width: 74) }.disabled(!model.options.numbering)
-                    HStack {
-                        Text(L("Цифр", "Digits")); Spacer()
-                        Picker(L("Цифр", "Digits"), selection: $model.options.digits) { ForEach(1...8, id: \.self) { Text("\($0)").tag($0) } }.labelsHidden().frame(width: 74)
-                    }.disabled(!model.options.numbering)
-                }
-                VStack(alignment: .leading, spacing: 10) {
-                    sectionHeader(L("Поиск и замена", "Find & Replace"), icon: "text.magnifyingglass")
-                    TextField(L("Найти в исходном имени", "Find in original name"), text: $model.options.find)
-                        .onChange(of: model.options.find) { if !model.options.find.isEmpty { model.options.keepName = true } }
-                    TextField(L("Заменить на", "Replace with"), text: $model.options.replacement)
-                    Toggle(L("Без учёта регистра", "Ignore case"), isOn: $model.options.caseInsensitive)
-                    if !model.options.find.isEmpty && !model.options.keepName { Text(L("Включите исходное имя для замены.", "Enable the original name to apply replacements.")).font(.caption).foregroundStyle(.orange) }
-                }
-                VStack(alignment: .leading, spacing: 10) {
-                    sectionHeader(L("Дата съёмки", "Date Taken"), icon: "camera")
-                    Toggle(L("Добавить дату из EXIF", "Add date from EXIF"), isOn: $model.options.useShotDate)
-                    if model.options.useShotDate {
-                        Picker(L("Формат", "Format"), selection: $model.options.shotFormat) { ForEach(ShotFormat.allCases) { Text($0.example).tag($0) } }.labelsHidden().frame(maxWidth: .infinity, alignment: .leading)
-                        Text(L("Без EXIF: \(model.missingEXIF). Дата не добавляется.", "Without EXIF: \(model.missingEXIF). No date is added."))
-                            .font(.caption).foregroundStyle(.secondary)
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        sectionHeader(L("Название", "Name"), icon: "textformat")
+                        TextField(L("Общее название / префикс", "Common name / prefix"), text: $model.options.prefix)
+                        HStack { Text(L("Разделитель", "Separator")); Spacer(); TextField("_", text: $model.options.separator).frame(width: 74) }
+                        Toggle(L("Оставить исходное имя", "Keep original name"), isOn: $model.options.keepName)
                     }
-                }
-                VStack(alignment: .leading, spacing: 8) {
-                    sectionHeader(L("Пример", "Example"), icon: "wand.and.stars")
-                    Text(model.files.first.map { model.newName($0, index: 0) } ?? "0001.txt")
-                        .font(.system(size: 12, design: .monospaced)).foregroundStyle(GrapeTheme.accent).lineLimit(3).textSelection(.enabled)
-                }.padding(12).frame(maxWidth: .infinity, alignment: .leading).background(GrapeTheme.accent.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
-                Text(L("Расширения и даты изменения сохраняются.", "Extensions and modification dates are preserved.")).font(.caption).foregroundStyle(.secondary)
-            }.padding(20)
+                    VStack(alignment: .leading, spacing: 10) {
+                        Toggle(L("Нумерация", "Numbering"), isOn: $model.options.numbering).fontWeight(.medium)
+                        HStack { Text(L("Начать с", "Start at")); Spacer(); TextField("1", value: $model.options.start, format: .number.grouping(.never)).frame(width: 74) }.disabled(!model.options.numbering)
+                        HStack {
+                            Text(L("Цифр", "Digits")); Spacer()
+                            Picker(L("Цифр", "Digits"), selection: $model.options.digits) { ForEach(1...8, id: \.self) { Text("\($0)").tag($0) } }.labelsHidden().frame(width: 74)
+                        }.disabled(!model.options.numbering)
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        sectionHeader(L("Пример", "Example"), icon: "wand.and.stars")
+                        Text(model.files.first.map { model.newName($0, index: 0) } ?? "0001.txt")
+                            .font(.system(size: 12, design: .monospaced)).foregroundStyle(GrapeTheme.accent).lineLimit(3).textSelection(.enabled)
+                    }.padding(12).frame(maxWidth: .infinity, alignment: .leading).background(GrapeTheme.accent.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
+                    Text(L("Расширения и даты изменения сохраняются.", "Extensions and modification dates are preserved.")).font(.caption).foregroundStyle(.secondary)
+                    Spacer(minLength: 20)
+                    Divider()
+                    VStack(alignment: .leading, spacing: 18) {
+                        Text(L("Дополнительно", "Advanced")).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                        DisclosureGroup {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Picker(L("Шаблон", "Preset"), selection: Binding(get: { model.selectedPreset }, set: { model.applyPreset($0) })) {
+                                    Text(L("Свои настройки", "Custom settings")).tag(nil as UUID?)
+                                    ForEach(model.presets) { Text($0.name).tag(Optional($0.id)) }
+                                }.labelsHidden().frame(maxWidth: .infinity, alignment: .leading)
+                                HStack {
+                                    Button(L("Сохранить…", "Save As…")) { presetName = ""; presetError = ""; savePreset = true }
+                                    if model.selectedPreset != nil {
+                                        Button { model.updatePreset() } label: { Image(systemName: "arrow.triangle.2.circlepath") }.help(L("Обновить шаблон", "Update preset"))
+                                        Button { model.deletePreset() } label: { Image(systemName: "trash") }.help(L("Удалить шаблон", "Delete preset"))
+                                    }
+                                }.controlSize(.small)
+                            }.padding(.top, 10)
+                        } label: { Label(L("Шаблоны", "Presets"), systemImage: "slider.horizontal.3") }
+                        DisclosureGroup {
+                            VStack(alignment: .leading, spacing: 10) {
+                                TextField(L("Найти в исходном имени", "Find in original name"), text: $model.options.find)
+                                    .onChange(of: model.options.find) { if !model.options.find.isEmpty { model.options.keepName = true } }
+                                TextField(L("Заменить на", "Replace with"), text: $model.options.replacement)
+                                Toggle(L("Без учёта регистра", "Ignore case"), isOn: $model.options.caseInsensitive)
+                                if !model.options.find.isEmpty && !model.options.keepName {
+                                    Text(L("Включите исходное имя для замены.", "Enable the original name to apply replacements.")).font(.caption).foregroundStyle(.orange)
+                                }
+                            }.padding(.top, 10)
+                        } label: {
+                            HStack {
+                                Label(L("Поиск и замена", "Find & Replace"), systemImage: "text.magnifyingglass")
+                                Spacer()
+                                if !model.options.find.isEmpty { Text(L("Вкл.", "On")).font(.caption).foregroundStyle(GrapeTheme.accent) }
+                            }
+                        }
+                        DisclosureGroup {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Toggle(L("Добавить дату из EXIF", "Add date from EXIF"), isOn: $model.options.useShotDate)
+                                if model.options.useShotDate {
+                                    Picker(L("Формат", "Format"), selection: $model.options.shotFormat) { ForEach(ShotFormat.allCases) { Text($0.example).tag($0) } }.labelsHidden()
+                                    Text(L("Без EXIF: \(model.missingEXIF). Дата не добавляется.", "Without EXIF: \(model.missingEXIF). No date is added.")).font(.caption).foregroundStyle(.secondary)
+                                }
+                            }.padding(.top, 10)
+                        } label: {
+                            HStack {
+                                Label(L("Дата съёмки", "Date Taken"), systemImage: "camera")
+                                Spacer()
+                                if model.options.useShotDate { Text(L("Вкл.", "On")).font(.caption).foregroundStyle(GrapeTheme.accent) }
+                            }
+                        }
+                    }
+                }.frame(minHeight: max(0, geometry.size.height - 40), alignment: .topLeading).padding(20)
+            }
         }.textFieldStyle(.roundedBorder).toggleStyle(.checkbox).font(.system(size: 12)).background(.thinMaterial)
     }
     private var browser: some View {

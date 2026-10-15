@@ -3,7 +3,7 @@
 <p align="center"><img src="docs/assets/banner.svg" width="100%" alt="Grape Rename — Clean names. Your order."></p>
 
 <p align="center">
-<img alt="Version 1.0.7" src="https://img.shields.io/badge/version-1.0.7-925bd6?style=flat-square">
+<img alt="Version 1.0.8" src="https://img.shields.io/badge/version-1.0.8-925bd6?style=flat-square">
 <img alt="macOS 26+" src="https://img.shields.io/badge/macOS-26%2B-26232b?style=flat-square">
 <img alt="Apple Silicon" src="https://img.shields.io/badge/Apple-Silicon-26232b?style=flat-square">
 <img alt="Russian and English" src="https://img.shields.io/badge/languages-RU%20%2F%20EN-26232b?style=flat-square">
@@ -58,9 +58,25 @@ We would love you to try it and tell us how it fits your workflow. Photos, scans
 
 </details>
 
+## Tools: duplicates and similar photos
+
+The **Tools** menu offers two separate searches. Files from the main list are selected initially; you can choose other files or folders in the search window. Folder scans can include subfolders. Hidden files and symbolic links are skipped; multiple hard links to the same file count once.
+
+**Exact duplicates:** size filtering, streaming SHA-256 and byte-for-byte verification. Names, extensions and dates may differ.
+
+**Similar photos:** a perceptual image hash combined with Apple Vision, with strict, balanced and broader matching. This helps locate resized, recompressed and related images, but does not prove identical content. Each member is compared with its group's first image. Similar photos require manual review.
+
+Search runs locally in the background, reports progress and can be stopped. Unreadable and corrupt files are listed separately. One file in each group is marked **Keep**, and you can change it. Nothing is selected initially. Exact search also offers **Select Copies** for the other group members.
+
+**Remove from Batch** excludes selected files from renaming without changing the files on disk. **Move to Trash** requests confirmation and checks for changes since the scan. Restore trashed files in Finder; rename undo does not restore them. The displayed size is the sum of selected file sizes, not guaranteed reclaimed disk space.
+
+The main window opens immediately. Prefix, numbering and the naming example stay visible; presets, find and replace and EXIF settings are in collapsible **Advanced** sections at the bottom of the left sidebar.
+
+![Grape Rename — Exact Duplicates](docs/assets/duplicates-screenshot.png)
+
 ## Download and install
 
-**Current release: 1.0.7, build 7.** Requires macOS Tahoe 26+ and an Apple Silicon Mac.
+**Current release: 1.0.8, build 8.** Requires macOS Tahoe 26+ and an Apple Silicon Mac.
 
 1. [Download Grape-Rename.dmg](https://github.com/hikanioblack-dot/grape-rename/releases/latest/download/Grape-Rename.dmg).
 2. Open the DMG and drag **Grape Rename.app** into **Applications**.

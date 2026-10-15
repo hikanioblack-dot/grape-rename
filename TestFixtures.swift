@@ -21,6 +21,41 @@ enum TestFixtures {
         CGImageDestinationAddImage(destination, image, properties as CFDictionary)
         guard CGImageDestinationFinalize(destination) else { throw RenameError.message("Fixture image export failed") }
     }
+    static func createDuplicateSamples(at root: URL) throws {
+        try create(at: root)
+        let fm = FileManager.default
+        let original = root.appendingPathComponent("IMG_0102.jpg")
+        try fm.copyItem(at: original, to: root.appendingPathComponent("Exact photo copy.jpeg"))
+        try fm.copyItem(at: root.appendingPathComponent("Заметки.md"), to: root.appendingPathComponent("Notes copy.txt"))
+        let resized = root.appendingPathComponent("Resized photo.jpg")
+        guard let source = CGImageSourceCreateWithURL(original as CFURL, nil),
+              let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceThumbnailMaxPixelSize: 300
+              ] as CFDictionary),
+              let destination = CGImageDestinationCreateWithURL(resized as CFURL, UTType.jpeg.identifier as CFString, 1, nil)
+        else { throw RenameError.message("Duplicate demo image setup failed") }
+        CGImageDestinationAddImage(destination, image, [kCGImageDestinationLossyCompressionQuality: 0.45] as CFDictionary)
+        guard CGImageDestinationFinalize(destination) else { throw RenameError.message("Duplicate demo image export failed") }
+        try Data("""
+        Grape Rename — Duplicate Samples
+
+        Exact matches:
+        IMG_0102.jpg = Exact photo copy.jpeg (same bytes, different name and extension).
+        Заметки.md = Notes copy.txt.
+
+        Similar images:
+        Resized photo.jpg is a smaller, recompressed IMG_0102.jpg.
+        The other colored landscapes have similar composition; wider matching can group them too.
+
+        Инструменты → Найти точные дубликаты / Найти похожие фотографии.
+        Все файлы искусственные и предназначены для проверки.
+        """.utf8).write(to: root.appendingPathComponent("Duplicate Demo.txt"))
+        for name in ["Exact photo copy.jpeg", "Notes copy.txt", "Resized photo.jpg", "Duplicate Demo.txt"] {
+            try fm.setAttributes([.modificationDate: Date(timeIntervalSince1970: 1_720_000_000)], ofItemAtPath: root.appendingPathComponent(name).path)
+        }
+    }
     static func create(at root: URL) throws {
         let fm = FileManager.default
         guard !fm.fileExists(atPath: root.path) else { throw RenameError.message(L("Тестовая папка уже существует.", "The test folder already exists.")) }
