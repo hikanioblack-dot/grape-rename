@@ -1,6 +1,6 @@
 # Feedback and contributions
 
-Thank you for trying Grape Rename. Bug reports, usability feedback and feature ideas are welcome in Issues, in Russian or English.
+Thank you for trying Grape Rename. Bug reports, usability feedback and feature ideas are welcome in Issues.
 
 For bug reports, include app and macOS versions, file types, view mode, reproduction steps, expected result and actual result. Use generated sample files rather than personal documents.
 

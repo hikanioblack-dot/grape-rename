@@ -6,7 +6,6 @@
 <img alt="Version 1.0.10" src="https://img.shields.io/badge/version-1.0.10-925bd6?style=flat-square">
 <img alt="macOS 26+" src="https://img.shields.io/badge/macOS-26%2B-26232b?style=flat-square">
 <img alt="Apple Silicon" src="https://img.shields.io/badge/Apple-Silicon-26232b?style=flat-square">
-<img alt="Russian and English" src="https://img.shields.io/badge/languages-RU%20%2F%20EN-26232b?style=flat-square">
 <img alt="Windows planned" src="https://img.shields.io/badge/Windows-planned-925bd6?style=flat-square">
 </p>
 
@@ -46,10 +45,9 @@ We would love you to try it and tell us how it fits your workflow. Photos, scans
 - Literal find and replace with optional case-insensitive matching.
 - EXIF capture dates in names; no substituted date when EXIF is missing.
 - **Space** for Quick Look, arrow navigation and a live sidebar preview.
-- Read-only file metadata, image dimensions, camera details and EXIF when available.
+- Read-only metadata: dates, image dimensions, camera details, EXIF and properties of other supported file formats.
 - Saved presets, persistent rename history and **⌘Z** undo.
 - Name conflict checks and protection against overwriting existing files.
-- English and Russian, following the system language.
 
 <details>
 <summary><b>View the thumbnail grid</b></summary>
@@ -64,7 +62,7 @@ The **Tools** menu offers two separate searches. Files from the main list are se
 
 **Exact duplicates:** size filtering, streaming SHA-256 and byte-for-byte verification. Names, extensions and dates may differ.
 
-**Similar photos:** a perceptual image hash combined with Apple Vision, with strict, balanced and broader matching. This helps locate resized, recompressed and related images, but does not prove identical content. Each member is compared with its group's first image. Similar photos require manual review.
+**Similar photos:** a perceptual image hash combined with Apple Vision, with strict, balanced and broader matching. This helps locate resized, recompressed and related images, but does not prove identical content. Each file is compared with its group's first image; similar photos must be reviewed manually and cannot be deleted automatically as exact copies.
 
 Search runs locally in the background, reports progress and can be stopped. Unreadable and corrupt files are listed separately. One file in each group is marked **Keep**, and you can change it. Nothing is selected initially. In exact search, **Move All Copies to Trash…** selects every file except those marked **Keep**, then asks for confirmation with the file count. To remove individual files, check their boxes and click **Move Selected to Trash…**.
 
@@ -76,7 +74,7 @@ The main window opens immediately. Prefix, numbering and the naming example stay
 
 ## Text in images
 
-Open **Tools → Find Text in Images…** to scan images or folders locally with Apple Vision. No metadata is needed. Recognition supports Russian and English; only the first page/frame of multipage or animated images is scanned. Unreadable images are listed separately.
+Open **Tools → Find Text in Images…** to scan images or folders locally with Apple Vision. No metadata is needed. Only the first page/frame of multipage or animated images is scanned. Unreadable and corrupt images are listed separately.
 
 Switch between **With Text**, **Lots of Text**, **No Text Detected** and **All Images** without rescanning. Adjust the minimum non-whitespace character and line counts for Lots of Text. Search for a word or phrase without case sensitivity. The right sidebar shows a preview and recognized text, with a copy button.
 
@@ -95,6 +93,8 @@ Scanning runs in the background and can be stopped. Optional local caching store
 1. [Download Grape-Rename.dmg](https://github.com/hikanioblack-dot/grape-rename/releases/latest/download/Grape-Rename.dmg).
 2. Open the DMG and drag **Grape Rename.app** into **Applications**.
 3. Launch from Applications. Replace the previous copy when updating.
+
+The interface language follows your macOS settings automatically.
 
 Free to download without signing in. Each release includes `SHA256SUMS.txt`.
 
@@ -137,8 +137,8 @@ Requires macOS 26+ and Command Line Tools with Swift 6.3 and the macOS 26 SDK:
 zsh build.sh
 ```
 
-The script creates the app, ZIP, DMG and checksum in `dist/`, applies an ad-hoc signature and runs checks in both languages. Checks cover bytes and timestamps, persistent undo, name conflicts, import, sorting, EXIF and interrupted-operation recovery.
+The script creates the app, ZIP, DMG and checksum in `dist/`, applies an ad-hoc signature and runs automated checks. Checks cover bytes and timestamps, persistent undo, name conflicts, import, sorting, EXIF and interrupted-operation recovery.
 
-[Detailed guide in Russian](docs/USER_GUIDE.ru.md) · [Changelog](CHANGELOG.md)
+[Detailed guide](docs/USER_GUIDE.en.md) · [Changelog](CHANGELOG.md)
 
 Renaming can change the parent folder's modification date and system metadata time (`ctime`). The file's own modification date is preserved.

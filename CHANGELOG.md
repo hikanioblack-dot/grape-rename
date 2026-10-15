@@ -2,7 +2,7 @@
 
 ## 1.0.10
 
-- On-device Russian/English image OCR in Tools, independent of EXIF metadata.
+- On-device image OCR in Tools, independent of EXIF metadata.
 - Text, text-density, no-text and phrase filters with image previews and recognized text.
 - Optional local OCR cache with invalidation and a clear-cache action.
 - Copy or move selected images to a folder without overwriting existing names.
@@ -27,7 +27,7 @@
 
 ## 1.0.7 — First public release
 
-- Native macOS Tahoe interface, English and Russian.
+- Native macOS Tahoe interface.
 - Batch naming, sorting, manual order and saved presets.
 - Compact rows, thumbnail list and adjustable grid.
 - Quick Look on Space, inline previews and file metadata.
