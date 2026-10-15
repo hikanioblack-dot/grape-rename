@@ -105,6 +105,16 @@ func runDuplicateTests() throws {
     let model = Model(storageURL: root.appendingPathComponent("state.json"))
     model.load([original, resized], folder: false)
     let ui = DuplicateSearch(files: model.files)
+    ui.report = exact
+    for group in exact.groups { ui.keep(group.files.last!, in: group) }
+    ui.selectCopies()
+    guard ui.selectedFiles.count == exact.groups.count,
+          exact.groups.allSatisfy({ group in
+              ui.selectedFiles.filter { file in group.files.contains(where: { $0.id == file.id }) }.count == group.files.count - 1
+                  && !ui.selection.contains(group.files.last!.id)
+          }) else { throw RenameError.message("All copies must preserve the chosen keeper in every group") }
+    ui.selection = []
+    ui.keepers = [:]
     ui.report = visual
     let group = visual.groups[0]
     ui.keepers = [group.id: group.files[0].id]

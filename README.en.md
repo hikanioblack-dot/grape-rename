@@ -3,7 +3,7 @@
 <p align="center"><img src="docs/assets/banner.svg" width="100%" alt="Grape Rename — Clean names. Your order."></p>
 
 <p align="center">
-<img alt="Version 1.0.8" src="https://img.shields.io/badge/version-1.0.8-925bd6?style=flat-square">
+<img alt="Version 1.0.10" src="https://img.shields.io/badge/version-1.0.10-925bd6?style=flat-square">
 <img alt="macOS 26+" src="https://img.shields.io/badge/macOS-26%2B-26232b?style=flat-square">
 <img alt="Apple Silicon" src="https://img.shields.io/badge/Apple-Silicon-26232b?style=flat-square">
 <img alt="Russian and English" src="https://img.shields.io/badge/languages-RU%20%2F%20EN-26232b?style=flat-square">
@@ -66,7 +66,7 @@ The **Tools** menu offers two separate searches. Files from the main list are se
 
 **Similar photos:** a perceptual image hash combined with Apple Vision, with strict, balanced and broader matching. This helps locate resized, recompressed and related images, but does not prove identical content. Each member is compared with its group's first image. Similar photos require manual review.
 
-Search runs locally in the background, reports progress and can be stopped. Unreadable and corrupt files are listed separately. One file in each group is marked **Keep**, and you can change it. Nothing is selected initially. Exact search also offers **Select Copies** for the other group members.
+Search runs locally in the background, reports progress and can be stopped. Unreadable and corrupt files are listed separately. One file in each group is marked **Keep**, and you can change it. Nothing is selected initially. In exact search, **Move All Copies to Trash…** selects every file except those marked **Keep**, then asks for confirmation with the file count. To remove individual files, check their boxes and click **Move Selected to Trash…**.
 
 **Remove from Batch** excludes selected files from renaming without changing the files on disk. **Move to Trash** requests confirmation and checks for changes since the scan. Restore trashed files in Finder; rename undo does not restore them. The displayed size is the sum of selected file sizes, not guaranteed reclaimed disk space.
 
@@ -74,9 +74,23 @@ The main window opens immediately. Prefix, numbering and the naming example stay
 
 ![Grape Rename — Exact Duplicates](docs/assets/duplicates-screenshot.png)
 
+## Text in images
+
+Open **Tools → Find Text in Images…** to scan images or folders locally with Apple Vision. No metadata is needed. Recognition supports Russian and English; only the first page/frame of multipage or animated images is scanned. Unreadable images are listed separately.
+
+Switch between **With Text**, **Lots of Text**, **No Text Detected** and **All Images** without rescanning. Adjust the minimum non-whitespace character and line counts for Lots of Text. Search for a word or phrase without case sensitivity. The right sidebar shows a preview and recognized text, with a copy button.
+
+Text does not prove an image is a screenshot. Document photos also contain text, and small or blurry text may be missed. No Text Detected is not a guarantee that an image contains no writing.
+
+Check files and use **Selected Files…** to copy or move them to a folder, or move them to Trash. Existing destination names are never overwritten. **All Matches to Trash…** targets only the current filter and query results and asks for confirmation with the count. Unlike duplicate search, no copy is protected: these are the original matching images. Files are checked for changes before actions. Restore trashed files in Finder; rename history does not undo moving or deleting images.
+
+Scanning runs in the background and can be stopped. Optional local caching stores recognized text; disable it or use **Clear Cache** to delete it. Files and text are never uploaded. Scanning preserves image contents and modification dates.
+
+![Grape Rename — text search](docs/assets/text-search-screenshot.png)
+
 ## Download and install
 
-**Current release: 1.0.8, build 8.** Requires macOS Tahoe 26+ and an Apple Silicon Mac.
+**Current release: 1.0.10, build 10.** Requires macOS Tahoe 26+ and an Apple Silicon Mac.
 
 1. [Download Grape-Rename.dmg](https://github.com/hikanioblack-dot/grape-rename/releases/latest/download/Grape-Rename.dmg).
 2. Open the DMG and drag **Grape Rename.app** into **Applications**.

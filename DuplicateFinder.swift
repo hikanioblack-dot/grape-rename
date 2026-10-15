@@ -215,9 +215,18 @@ struct DuplicateFinderView: View {
                 HStack {
                     Text(L("Групп: \(report.groups.count)", "Groups: \(report.groups.count)")).fontWeight(.semibold)
                     Spacer()
-                    if mode == .exact, !report.groups.isEmpty { Button(L("Выбрать копии", "Select Copies")) { search.selectCopies() }.controlSize(.small) }
+                    if mode == .exact, !report.groups.isEmpty {
+                        Button(L("В Корзину все копии…", "Move All Copies to Trash…"), role: .destructive) {
+                            search.selectCopies()
+                            confirmTrash = true
+                        }.controlSize(.small)
+                    }
                     if !search.selection.isEmpty { Button(L("Снять выбор", "Deselect All")) { search.selection = [] }.controlSize(.small) }
                 }.font(.callout).padding(16)
+                if !report.groups.isEmpty {
+                    Text(L("«Оставить» — сохраняемый файл. Галочки — файлы для удаления.", "Keep marks the file to preserve. Checkboxes select files for removal."))
+                        .font(.caption).foregroundStyle(.secondary).padding(.horizontal, 16).padding(.bottom, 12)
+                }
                 if report.groups.isEmpty {
                     ContentUnavailableView(L("Совпадений не найдено", "No Matches Found"), systemImage: "checkmark.circle",
                         description: Text(L("Проверено файлов: \(report.inspected)", "Files checked: \(report.inspected)")))
@@ -297,7 +306,7 @@ struct DuplicateFinderView: View {
             Spacer()
             Button(L("Убрать из набора", "Remove from Batch")) { search.exclude(from: model) }
                 .disabled(search.running || !search.selectedFiles.contains(where: { file in model.files.contains(where: { $0.url == file.url }) }))
-            Button(L("В Корзину…", "Move to Trash…"), role: .destructive) { confirmTrash = true }
+            Button(L("Выбранное в Корзину…", "Move Selected to Trash…"), role: .destructive) { confirmTrash = true }
                 .disabled(search.running || search.selectedFiles.isEmpty)
             Button(L("Готово", "Done")) { dismiss() }.keyboardShortcut(.cancelAction).disabled(search.running)
         }.padding(16)

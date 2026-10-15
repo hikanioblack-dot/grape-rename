@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.10
+
+- On-device Russian/English image OCR in Tools, independent of EXIF metadata.
+- Text, text-density, no-text and phrase filters with image previews and recognized text.
+- Optional local OCR cache with invalidation and a clear-cache action.
+- Copy or move selected images to a folder without overwriting existing names.
+- Confirmed selected/all-filtered-results Move to Trash with changed-file protection.
+- OCR, cache, filtering, export and deletion-safety regression tests.
+
+## 1.0.9
+
+- Exact duplicate results offer Move All Copies to Trash with confirmation, preserving the chosen Keep file in every group.
+- Clearer checkbox guidance and a separate Move Selected to Trash action.
+- Regression coverage for custom kept files across multiple duplicate groups.
+
 ## 1.0.8
 
 - Tools menu with exact duplicates (size, streamed SHA-256, byte verification).

@@ -61,6 +61,7 @@ final class Model: ObservableObject {
     @Published var selectedPreset: UUID?
     @Published var showHistory = false
     @Published var duplicateMode: DuplicateMode?
+    @Published var showImageTextSearch = false
     @Published var showInspector = true
     @Published var persistenceError = ""
     @Published var busy = false

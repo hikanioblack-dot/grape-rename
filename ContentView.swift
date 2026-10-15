@@ -25,6 +25,7 @@ struct ContentView: View {
             }
             .alert(L("Ошибка", "Error"), isPresented: $model.showError) { Button(L("Понятно", "OK"), role: .cancel) {} } message: { Text(model.errorMessage) }
             .sheet(item: $model.duplicateMode) { DuplicateFinderView(model: model, mode: $0) }
+            .sheet(isPresented: $model.showImageTextSearch) { ImageTextSearchView(model: model) }
             .sheet(isPresented: $model.showHistory) { HistoryView(model: model) }
             .sheet(isPresented: $savePreset) { presetSheet }
             .toolbar {

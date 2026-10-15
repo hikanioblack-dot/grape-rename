@@ -28,6 +28,10 @@ struct GrapeRenameApp: App {
                 print("UI fixtures, preset and history prepared"); exit(0)
             } catch { fputs("FAIL: \(error.localizedDescription)\n", stderr); exit(1) }
         }
+        if let index = CommandLine.arguments.firstIndex(of: "--make-text-fixtures"), CommandLine.arguments.indices.contains(index + 1) {
+            do { try TestFixtures.createTextSamples(at: URL(fileURLWithPath: CommandLine.arguments[index + 1])); print("Text samples created"); exit(0) }
+            catch { fputs("FAIL: \(error.localizedDescription)\n", stderr); exit(1) }
+        }
         if let index = CommandLine.arguments.firstIndex(of: "--make-duplicate-fixtures"), CommandLine.arguments.indices.contains(index + 1) {
             do { try TestFixtures.createDuplicateSamples(at: URL(fileURLWithPath: CommandLine.arguments[index + 1])); print("Duplicate samples created"); exit(0) }
             catch { fputs("FAIL: \(error.localizedDescription)\n", stderr); exit(1) }
@@ -37,7 +41,7 @@ struct GrapeRenameApp: App {
             catch { fputs("FAIL: \(error.localizedDescription)\n", stderr); exit(1) }
         }
         if CommandLine.arguments.contains("--self-test") {
-            do { try runSelfTests(); try runIntegrationTests(); try runFeatureTests(); try runDuplicateTests(); print("LANGUAGE: \(Language.isRussian ? "ru" : "en")"); exit(0) }
+            do { try runSelfTests(); try runIntegrationTests(); try runFeatureTests(); try runDuplicateTests(); try runImageTextTests(); print("LANGUAGE: \(Language.isRussian ? "ru" : "en")"); exit(0) }
             catch { fputs("FAIL: \(error.localizedDescription)\n", stderr); exit(1) }
         }
         _model = StateObject(wrappedValue: Model())
@@ -60,6 +64,8 @@ struct GrapeRenameApp: App {
                 CommandMenu(L("Инструменты", "Tools")) {
                     Button(L("Найти точные дубликаты…", "Find Exact Duplicates…")) { model.duplicateMode = .exact }
                     Button(L("Найти похожие фотографии…", "Find Similar Photos…")) { model.duplicateMode = .similar }
+                    Divider()
+                    Button(L("Поиск текста на изображениях…", "Find Text in Images…")) { model.showImageTextSearch = true }
                 }
                 CommandMenu(L("Файлы", "Files")) {
                     Button(L("Показать информацию о файле", "Show File Information")) { model.revealInspector() }.keyboardShortcut("i").disabled(model.selection == nil)
