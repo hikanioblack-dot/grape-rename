@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.1.2 — 2026-10-16
+
+Includes changes from the unpublished 1.0.11 local build.
+
+- Background file import with progress, cancellation and stale-result protection; failed imports preserve the previous batch.
+- Prevent duplicate file chooser dialogs while one is already open.
+- Correct singular/plural wording in OCR Trash confirmations.
+
+- Bounded concurrent OCR and more efficient batch updates after rename/undo.
+- Protect numbering previews against invalid and overflowing starting values.
+- Consolidated media tools, clearer OCR selection actions and frozen confirmation snapshots.
+- File information/history in File, view commands in Window, and a compact Cache menu.
+
 ## 1.0.10
 
 - On-device image OCR in Tools, independent of EXIF metadata.

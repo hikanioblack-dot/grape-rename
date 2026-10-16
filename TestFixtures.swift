@@ -4,6 +4,45 @@ import ImageIO
 import UniformTypeIdentifiers
 
 enum TestFixtures {
+    static func createReviewSamples(at root: URL) throws {
+        let fm = FileManager.default
+        guard !fm.fileExists(atPath: root.path) else { throw RenameError.message(L("Тестовая папка уже существует.", "The test folder already exists.")) }
+        try fm.createDirectory(at: root, withIntermediateDirectories: true)
+        let originals = root.appendingPathComponent("Originals", isDirectory: true)
+        try fm.createDirectory(at: originals, withIntermediateDirectories: true)
+        try create(at: originals.appendingPathComponent("01 Rename and Preview"))
+        try createDuplicateSamples(at: originals.appendingPathComponent("02 Duplicates and Similar"))
+        let text = originals.appendingPathComponent("03 Text Search")
+        try createTextSamples(at: text)
+        try Data("Synthetic unreadable image".utf8).write(to: text.appendingPathComponent("Broken.png"))
+        let nested = text.appendingPathComponent("Nested", isDirectory: true)
+        try fm.createDirectory(at: nested, withIntermediateDirectories: true)
+        try textImage(nested.appendingPathComponent("Nested phrase.png"), lines: ["NESTED GRAPE", "Вложенный пример"])
+        // Multi-frame ImageIO input: OCR intentionally examines the first frame.
+        guard let first = CGImageSourceCreateWithURL(text.appendingPathComponent("Small sign.png") as CFURL, nil),
+              let last = CGImageSourceCreateWithURL(text.appendingPathComponent("Chat screenshot.png") as CFURL, nil),
+              let a = CGImageSourceCreateImageAtIndex(first, 0, nil),
+              let b = CGImageSourceCreateImageAtIndex(last, 0, nil),
+              let gif = CGImageDestinationCreateWithURL(text.appendingPathComponent("First frame only.gif") as CFURL, UTType.gif.identifier as CFString, 2, nil)
+        else { throw RenameError.message("Review GIF setup failed") }
+        CGImageDestinationAddImage(gif, a, nil); CGImageDestinationAddImage(gif, b, nil)
+        guard CGImageDestinationFinalize(gif) else { throw RenameError.message("Review GIF export failed") }
+        let conflict = originals.appendingPathComponent("04 Conflicts and Changes")
+        try fm.createDirectory(at: conflict, withIntermediateDirectories: true)
+        for (name, contents) in ["Source.txt": "SOURCE — synthetic file\n", "Occupied_0001.txt": "DESTINATION — must not be overwritten\n", "Same size A.bin": "ABCD", "Same size B.bin": "WXYZ", "Empty A.txt": "", "Empty B.txt": ""] {
+            try Data(contents.utf8).write(to: conflict.appendingPathComponent(name))
+        }
+        let unicode = originals.appendingPathComponent("05 Unicode and Order")
+        try fm.createDirectory(at: unicode, withIntermediateDirectories: true)
+        for name in ["Фото 2.txt", "Фото 10.txt", "Photo 1.TXT", "Имя с пробелами и эмодзи 🍇.txt", String(repeating: "Длинное имя ", count: 8) + ".txt"] {
+            try Data((name + "\n").utf8).write(to: unicode.appendingPathComponent(name))
+        }
+        try fm.copyItem(at: originals, to: root.appendingPathComponent("Working", isDirectory: true))
+        try fm.createDirectory(at: root.appendingPathComponent("Export", isDirectory: true), withIntermediateDirectories: true)
+        try fm.createDirectory(at: root.appendingPathComponent("Verification", isDirectory: true), withIntermediateDirectories: true)
+        try fm.createDirectory(at: root.appendingPathComponent("App State", isDirectory: true), withIntermediateDirectories: true)
+    }
+
     static func image(_ url: URL, type: UTType, color: (CGFloat, CGFloat, CGFloat), date: String? = nil) throws {
         let width = 640, height = 420
         let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
@@ -49,7 +88,7 @@ enum TestFixtures {
         Resized photo.jpg is a smaller, recompressed IMG_0102.jpg.
         The other colored landscapes have similar composition; wider matching can group them too.
 
-        Инструменты → Найти точные дубликаты / Найти похожие фотографии.
+        Инструменты → Найти и изменить медиафайлы → Точные дубликаты / Похожие фотографии.
         Все файлы искусственные и предназначены для проверки.
         """.utf8).write(to: root.appendingPathComponent("Duplicate Demo.txt"))
         for name in ["Exact photo copy.jpeg", "Notes copy.txt", "Resized photo.jpg", "Duplicate Demo.txt"] {

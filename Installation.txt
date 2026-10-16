@@ -1,4 +1,4 @@
-Grape Rename 1.0.10 (build 10)
+Grape Rename 1.1.2 (build 12)
 
 Установка
 
@@ -28,8 +28,8 @@ Grape Rename 1.0.10 (build 10)
 возвращает последнее переименование; более ранние отменяются в обратном порядке.
 EXIF-названия используют DateTimeOriginal. Без EXIF дата не добавляется.
 
-Инструменты доступны в одноимённом верхнем меню: точные дубликаты, похожие фото,
-поиск текста на изображениях. Перенос в Корзину требует подтверждения;
+Инструменты доступны в одноимённом верхнем меню: «Найти и изменить медиафайлы» (точные дубликаты и похожие фото),
+«Поиск текста на медиафайлах» (поддерживаемые изображения). Перенос в Корзину требует подтверждения;
 восстановление выполняется Finder, а не отменой переименования.
 
 ---
@@ -62,6 +62,7 @@ History and presets survive app restarts. Undo / Command-Z restores the last ren
 earlier operations must be undone in reverse order.
 EXIF naming uses DateTimeOriginal. Without EXIF, no date is added.
 
-The Tools menu provides exact duplicates, similar photos and text search in images.
+The Tools menu provides Find and Modify Media Files (exact duplicates and similar photos)
+and Find Text in Media Files (supported images).
 Moving files to Trash requires confirmation; restore them in Finder,
 not with rename undo.

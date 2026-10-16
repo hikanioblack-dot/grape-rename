@@ -1,6 +1,27 @@
 import SwiftUI
 import AppKit
 
+enum ImageTextActionScope: Sendable, Equatable { case selected, filtered }
+
+/// Captured when an action is requested; confirmation and execution share this set.
+struct ImageTextActionSnapshot: Sendable {
+    let scope: ImageTextActionScope
+    let files: [DuplicateFile]
+    let filterSummary: String
+    var confirmationTitle: String {
+        switch scope {
+        case .selected:
+            return files.count == 1
+                ? L("Выбранный файл в Корзину: 1?", "Move 1 selected file to Trash?")
+                : L("Выбранные файлы в Корзину: \(files.count)?", "Move \(files.count) selected files to Trash?")
+        case .filtered:
+            return files.count == 1
+                ? L("Результат фильтра в Корзину: 1?", "Move the filtered result to Trash?")
+                : L("Все результаты фильтра в Корзину: \(files.count)?", "Move all \(files.count) filtered results to Trash?")
+        }
+    }
+}
+
 @MainActor
 final class ImageTextSearch: ObservableObject {
     @Published var roots: [URL]
@@ -30,6 +51,15 @@ final class ImageTextSearch: ObservableObject {
         } ?? []
     }
     var selectedFiles: [DuplicateFile] { filtered.filter { selection.contains($0.id) }.map(\.file) }
+    func snapshot(for scope: ImageTextActionScope) -> ImageTextActionSnapshot {
+        let visible = filtered
+        let files = scope == .selected ? visible.filter { selection.contains($0.id) }.map(\.file) : visible.map(\.file)
+        let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        var summary = filter.title
+        if filter == .muchText { summary += L(" · символов от \(minimumCharacters), строк от \(minimumLines)", " · at least \(minimumCharacters) characters, \(minimumLines) lines") }
+        if !term.isEmpty { summary += " · «\(term)»" }
+        return ImageTextActionSnapshot(scope: scope, files: files, filterSummary: summary)
+    }
     func refreshFilter() {
         let visible = Set(filtered.map(\.id))
         selection.formIntersection(visible)
@@ -57,7 +87,7 @@ final class ImageTextSearch: ObservableObject {
             guard let self else { return }
             Task { @MainActor in if self.generation == id { self.progress = value } }
         }
-        let job = Task.detached(priority: .utility) { try ImageTextEngine.scan(roots, recursive: recursive, cache: cache, progress: update) }
+        let job = Task.detached(priority: .utility) { try await ImageTextEngine.scanConcurrent(roots, recursive: recursive, cache: cache, progress: update) }
         worker = job
         Task { [weak self] in
             do {
@@ -70,7 +100,8 @@ final class ImageTextSearch: ObservableObject {
             }
         }
     }
-    func perform(_ action: ImageTextAction, files: [DuplicateFile], model: Model) {
+    func perform(_ action: ImageTextAction, snapshot: ImageTextActionSnapshot, model: Model) {
+        let files = snapshot.files
         guard !running, !files.isEmpty else { return }
         running = true; notice = L("Обработка файлов…", "Processing files…"); error = ""
         Task {
@@ -88,14 +119,14 @@ final class ImageTextSearch: ObservableObject {
         }
     }
     func export(move: Bool, model: Model) {
-        let files = selectedFiles
-        guard !files.isEmpty else { return }
+        let snapshot = snapshot(for: .selected)
+        guard !snapshot.files.isEmpty else { return }
         let panel = NSOpenPanel()
         panel.canChooseFiles = false; panel.canChooseDirectories = true; panel.canCreateDirectories = true
         panel.prompt = move ? L("Переместить сюда", "Move Here") : L("Копировать сюда", "Copy Here")
         panel.begin { [weak self] response in
             guard response == .OK, let folder = panel.url else { return }
-            Task { @MainActor in self?.perform(move ? .move(folder) : .copy(folder), files: files, model: model) }
+            Task { @MainActor in self?.perform(move ? .move(folder) : .copy(folder), snapshot: snapshot, model: model) }
         }
     }
     func clearCache() {
@@ -110,7 +141,7 @@ struct ImageTextSearchView: View {
     @ObservedObject var model: Model
     @StateObject private var search: ImageTextSearch
     @Environment(\.dismiss) private var dismiss
-    @State private var pendingTrash: [DuplicateFile] = []
+    @State private var pendingTrash: ImageTextActionSnapshot?
     @State private var confirmTrash = false
     init(model: Model) {
         self.model = model
@@ -130,8 +161,8 @@ struct ImageTextSearchView: View {
                 }.padding(30).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let report = search.report { results(report) }
             else {
-                ContentUnavailableView(L("Текст на изображениях", "Text in Images"), systemImage: "text.viewfinder",
-                    description: Text(L("Выберите файлы или папку и начните поиск. Метаданные не требуются.", "Choose files or a folder and start scanning. Metadata is not required.")))
+                ContentUnavailableView(L("Добавьте медиафайлы", "Add Media Files"), systemImage: "text.viewfinder",
+                    description: Text(L("Выберите файлы или папку и начните поиск текста.", "Choose files or a folder and start searching for text.")))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             if !search.notice.isEmpty && !search.running {
@@ -150,23 +181,22 @@ struct ImageTextSearchView: View {
             .alert(L("Ошибка", "Error"), isPresented: Binding(get: { !search.error.isEmpty }, set: { if !$0 { search.error = "" } })) {
                 Button(L("Понятно", "OK")) { search.error = "" }
             } message: { Text(search.error) }
-            .confirmationDialog(L("Переместить в Корзину: \(pendingTrash.count)?", "Move \(pendingTrash.count) files to Trash?"), isPresented: $confirmTrash) {
-                Button(L("В Корзину: \(pendingTrash.count)", "Move \(pendingTrash.count) to Trash"), role: .destructive) {
-                    search.perform(.trash, files: pendingTrash, model: model); pendingTrash = []
+            .confirmationDialog(pendingTrash?.confirmationTitle ?? L("Переместить файлы в Корзину?", "Move files to Trash?"), isPresented: $confirmTrash) {
+                Button(L("В Корзину: \(pendingTrash?.files.count ?? 0)", "Move \(pendingTrash?.files.count ?? 0) to Trash"), role: .destructive) {
+                    guard let snapshot = pendingTrash else { return }
+                    search.perform(.trash, snapshot: snapshot, model: model); pendingTrash = nil
                 }
-                Button(L("Отмена", "Cancel"), role: .cancel) { pendingTrash = [] }
+                Button(L("Отмена", "Cancel"), role: .cancel) { pendingTrash = nil }
             } message: {
-                Text(L("Будут удалены выбранные результаты, включая оригиналы. Здесь нет сохраняемой копии, как в поиске дубликатов. Восстановление — через Корзину Finder; отмена переименования эти файлы не возвращает.",
-                       "These results include original files; no copy is protected as it is in duplicate search. Restore files from Finder Trash; rename undo does not restore them."))
+                Text((pendingTrash?.filterSummary ?? "") + "\n\n" + L("Файлы могут быть единственными оригиналами: сохраняемой копии нет. Восстановление — через Корзину Finder; отмена переименования эти файлы не возвращает.",
+                       "Files may be the only originals: no copy is protected. Restore files from Finder Trash; rename undo does not restore them."))
             }
     }
     private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(L("Текст на изображениях", "Text in Images")).font(.title2.weight(.semibold))
-                    Text(L("Локальное распознавание · Русский и английский · Без отправки файлов", "On-device recognition · Russian and English · No uploads"))
-                        .font(.caption).foregroundStyle(.secondary)
+                    Text(L("Поиск текста на медиафайлах", "Find Text in Media Files")).font(.title2.weight(.semibold))
                 }
                 Spacer()
                 Button { dismiss() } label: { Image(systemName: "xmark") }.buttonStyle(.plain).disabled(search.running).help(L("Закрыть", "Close"))
@@ -183,9 +213,11 @@ struct ImageTextSearchView: View {
             }
             HStack(spacing: 18) {
                 Toggle(L("Включая вложенные папки", "Include subfolders"), isOn: $search.recursive)
-                Toggle(L("Кэшировать текст локально", "Cache text locally"), isOn: $search.useCache)
                 Spacer()
-                Button(L("Очистить кэш", "Clear Cache")) { search.clearCache() }.controlSize(.small)
+                Menu(L("Кэш", "Cache")) {
+                    Toggle(L("Использовать кэш", "Use Cache"), isOn: $search.useCache)
+                    Button(L("Очистить кэш", "Clear Cache")) { search.clearCache() }
+                }.controlSize(.small)
             }.toggleStyle(.checkbox).font(.caption)
         }.padding(20).disabled(search.running)
     }
@@ -195,7 +227,7 @@ struct ImageTextSearchView: View {
                 Picker(L("Показать", "Show"), selection: $search.filter) {
                     ForEach(TextImageFilter.allCases) { Text($0.title).tag($0) }
                 }.pickerStyle(.segmented)
-                TextField(L("Слово или фраза внутри изображения", "Word or phrase within an image"), text: $search.query)
+                TextField(L("Слово или фраза", "Word or phrase"), text: $search.query)
                     .textFieldStyle(.roundedBorder)
                 if search.filter == .muchText {
                     HStack {
@@ -278,16 +310,24 @@ struct ImageTextSearchView: View {
                 Text(ByteCountFormatter.string(fromByteCount: search.selectedFiles.reduce(0) { $0 + $1.stamp.size }, countStyle: .file)).font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
-            Menu(L("С выбранными…", "Selected Files…")) {
-                Button(L("Копировать в папку…", "Copy to Folder…")) { search.export(move: false, model: model) }
-                Button(L("Переместить в папку…", "Move to Folder…")) { search.export(move: true, model: model) }
+            Menu(L("Действия…", "Actions…")) {
+                Button(L("Копировать выбранное в папку…", "Copy Selected to Folder…")) { search.export(move: false, model: model) }
+                    .disabled(search.selectedFiles.isEmpty)
+                Button(L("Переместить выбранное в папку…", "Move Selected to Folder…")) { search.export(move: true, model: model) }
+                    .disabled(search.selectedFiles.isEmpty)
                 Divider()
-                Button(L("Выбранное в Корзину…", "Move Selected to Trash…"), role: .destructive) { pendingTrash = search.selectedFiles; confirmTrash = true }
-            }.disabled(search.running || search.selectedFiles.isEmpty)
-            Button(L("Все найденные в Корзину…", "All Matches to Trash…"), role: .destructive) {
-                pendingTrash = search.filtered.map(\.file); confirmTrash = true
-            }.disabled(search.running || search.filtered.isEmpty)
+                Button(L("Все результаты фильтра в Корзину… (\(search.filtered.count))", "All Filtered Results to Trash… (\(search.filtered.count))"), role: .destructive) { prepareTrash(.filtered) }
+                    .disabled(search.filtered.isEmpty)
+            }.disabled(search.running)
+            Button(L("Выбранное в Корзину… (\(search.selectedFiles.count))", "Move Selected to Trash… (\(search.selectedFiles.count))"), role: .destructive) { prepareTrash(.selected) }
+                .disabled(search.running || search.selectedFiles.isEmpty)
             Button(L("Готово", "Done")) { dismiss() }.keyboardShortcut(.cancelAction).disabled(search.running)
         }.padding(16)
+    }
+    private func prepareTrash(_ scope: ImageTextActionScope) {
+        let snapshot = search.snapshot(for: scope)
+        guard !snapshot.files.isEmpty else { return }
+        pendingTrash = snapshot
+        confirmTrash = true
     }
 }

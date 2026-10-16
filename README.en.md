@@ -3,7 +3,7 @@
 <p align="center"><img src="docs/assets/banner.svg" width="100%" alt="Grape Rename — Clean names. Your order."></p>
 
 <p align="center">
-<img alt="Version 1.0.10" src="https://img.shields.io/badge/version-1.0.10-925bd6?style=flat-square">
+<img alt="Version 1.1.2" src="https://img.shields.io/badge/version-1.1.2-925bd6?style=flat-square">
 <img alt="macOS 26+" src="https://img.shields.io/badge/macOS-26%2B-26232b?style=flat-square">
 <img alt="Apple Silicon" src="https://img.shields.io/badge/Apple-Silicon-26232b?style=flat-square">
 <img alt="Windows planned" src="https://img.shields.io/badge/Windows-planned-925bd6?style=flat-square">
@@ -24,6 +24,10 @@ We would love you to try it and tell us how it fits your workflow. Photos, scans
 
 ![Grape Rename file list, new names, preview and metadata](docs/assets/app-screenshot.png)
 
+## New in 1.1.2
+
+Updated tool windows combine exact duplicate and similar-photo search. In text search, the main action applies to checked files, while bulk actions live in a separate menu. File import runs in the background with progress and cancellation; text recognition processes up to two images concurrently.
+
 ## Why use Grape Rename?
 
 | Your task | How the app helps |
@@ -37,7 +41,7 @@ We would love you to try it and tell us how it fits your workflow. Photos, scans
 
 ## Available now
 
-- Choose files or folders in Finder; drag in additional files.
+- Choose files or folders in Finder; drag in additional files. Background import includes progress and cancellation.
 - Prefix, separator, original name, start number, digit count and optional numbering.
 - Sort by name, type, size, creation date, modification date or EXIF capture date.
 - Manual order with an insertion line in compact and thumbnail lists.
@@ -58,7 +62,7 @@ We would love you to try it and tell us how it fits your workflow. Photos, scans
 
 ## Tools: duplicates and similar photos
 
-The **Tools** menu offers two separate searches. Files from the main list are selected initially; you can choose other files or folders in the search window. Folder scans can include subfolders. Hidden files and symbolic links are skipped; multiple hard links to the same file count once.
+Open **Tools → Find and Modify Media Files…** and choose exact duplicates or similar photos. Files from the main list are selected initially; you can choose other files or folders in the search window. Folder scans can include subfolders. Hidden files and symbolic links are skipped; multiple hard links to the same file count once.
 
 **Exact duplicates:** size filtering, streaming SHA-256 and byte-for-byte verification. Names, extensions and dates may differ.
 
@@ -74,21 +78,21 @@ The main window opens immediately. Prefix, numbering and the naming example stay
 
 ## Text in images
 
-Open **Tools → Find Text in Images…** to scan images or folders locally with Apple Vision. No metadata is needed. Only the first page/frame of multipage or animated images is scanned. Unreadable and corrupt images are listed separately.
+Open **Tools → Find Text in Media Files…** to scan images or folders locally with Apple Vision. No metadata is needed. Only the first page/frame of multipage or animated images is scanned. Unreadable and corrupt images are listed separately.
 
 Switch between **With Text**, **Lots of Text**, **No Text Detected** and **All Images** without rescanning. Adjust the minimum non-whitespace character and line counts for Lots of Text. Search for a word or phrase without case sensitivity. The right sidebar shows a preview and recognized text, with a copy button.
 
 Text does not prove an image is a screenshot. Document photos also contain text, and small or blurry text may be missed. No Text Detected is not a guarantee that an image contains no writing.
 
-Check files and use **Selected Files…** to copy or move them to a folder, or move them to Trash. Existing destination names are never overwritten. **All Matches to Trash…** targets only the current filter and query results and asks for confirmation with the count. Unlike duplicate search, no copy is protected: these are the original matching images. Files are checked for changes before actions. Restore trashed files in Finder; rename history does not undo moving or deleting images.
+Check files and use the main **Move Selected to Trash…** button for checked files only; copying and moving to a folder are in **Actions…**. Existing destination names are never overwritten. **Actions → All Filtered Results to Trash…** targets only the current filter and query results and asks for confirmation with the count. Unlike duplicate search, no copy is protected: these are the original matching images. Files are checked for changes before actions. Restore trashed files in Finder; rename history does not undo moving or deleting images.
 
-Scanning runs in the background and can be stopped. Optional local caching stores recognized text; disable it or use **Clear Cache** to delete it. Files and text are never uploaded. Scanning preserves image contents and modification dates.
+Scanning runs in the background and can be stopped. Optional local caching stores recognized text; disable it or use **Cache → Clear Cache** to delete it. Files and text are never uploaded. Scanning preserves image contents and modification dates.
 
 ![Grape Rename — text search](docs/assets/text-search-screenshot.png)
 
 ## Download and install
 
-**Current release: 1.0.10, build 10.** Requires macOS Tahoe 26+ and an Apple Silicon Mac.
+**Version 1.1.2, build 12.** Requires macOS Tahoe 26+ and an Apple Silicon Mac.
 
 1. [Download Grape-Rename.dmg](https://github.com/hikanioblack-dot/grape-rename/releases/latest/download/Grape-Rename.dmg).
 2. Open the DMG and drag **Grape Rename.app** into **Applications**.

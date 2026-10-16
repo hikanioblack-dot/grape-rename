@@ -44,13 +44,28 @@ struct ImageTextReport: Sendable {
 /// A separate cache per image prevents concurrent scans from overwriting each other's entries.
 /// Cached OCR is local only and keyed by the full file stamp and recognition settings.
 enum ImageTextEngine {
+    private struct Settings: Sendable {
+        let revision: Int
+        let languages: [String]
+        var signature: String { "v1-r\(revision)-accurate-\(languages.joined(separator: ","))-3000-confidence0.4" }
+        init() throws {
+            let request = VNRecognizeTextRequest()
+            request.recognitionLevel = .accurate
+            revision = request.revision
+            let supported = try request.supportedRecognitionLanguages()
+            languages = ["ru-RU", "en-US"].filter { supported.contains($0) }
+        }
+    }
     private struct Cached: Codable {
         let stamp: FileStamp
         let signature: String
         let content: ImageText
     }
     static var cacheDirectory: URL {
-        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        if let path = ProcessInfo.processInfo.environment["GRAPE_TEST_CACHE"] ?? Bundle.main.object(forInfoDictionaryKey: "GrapeTestCache") as? String {
+            return URL(fileURLWithPath: path, isDirectory: true)
+        }
+        return FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("local.grape.rename/ImageText-v1", isDirectory: true)
     }
     static func cacheURL(_ url: URL, directory: URL) -> URL {
@@ -58,20 +73,23 @@ enum ImageTextEngine {
         return directory.appendingPathComponent(key + ".json")
     }
     static func recognize(_ file: DuplicateFile, cache: URL?) throws -> (ImageText, Bool) {
+        try recognize(file, cache: cache, settings: Settings())
+    }
+    private static func recognize(_ file: DuplicateFile, cache: URL?, settings: Settings) throws -> (ImageText, Bool) {
         try Task.checkCancellation()
         try DuplicateEngine.assertUnchanged(file)
-        let request = VNRecognizeTextRequest()
-        request.recognitionLevel = .accurate
-        request.usesLanguageCorrection = true
-        let supported = try request.supportedRecognitionLanguages()
-        request.recognitionLanguages = ["ru-RU", "en-US"].filter { supported.contains($0) }
-        request.automaticallyDetectsLanguage = true
-        let signature = "v1-r\(request.revision)-accurate-\(request.recognitionLanguages.joined(separator: ","))-3000-confidence0.4"
+        let signature = settings.signature
         if let cache, let data = try? Data(contentsOf: cacheURL(file.url, directory: cache)),
            let entry = try? JSONDecoder().decode(Cached.self, from: data), entry.stamp == file.stamp, entry.signature == signature {
             try DuplicateEngine.assertUnchanged(file)
             return (entry.content, true)
         }
+        let request = VNRecognizeTextRequest()
+        request.revision = settings.revision
+        request.recognitionLevel = .accurate
+        request.usesLanguageCorrection = true
+        request.recognitionLanguages = settings.languages
+        request.automaticallyDetectsLanguage = true
         guard let source = CGImageSourceCreateWithURL(file.url as CFURL, nil),
               let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
                 kCGImageSourceCreateThumbnailFromImageAlways: true,
@@ -100,6 +118,30 @@ enum ImageTextEngine {
         return (result, false)
     }
     static func scan(_ roots: [URL], recursive: Bool, cache: URL?, progress: @Sendable (DuplicateProgress) -> Void = { _ in }) throws -> ImageTextReport {
+        let (images, initial) = try collectImages(roots, recursive: recursive)
+        var report = initial
+        guard !images.isEmpty else {
+            try Task.checkCancellation()
+            progress(DuplicateProgress(fraction: 1, message: L("Готово", "Done")))
+            return report
+        }
+        let settings = try Settings()
+        for (index, file) in images.enumerated() {
+            try Task.checkCancellation()
+            progress(DuplicateProgress(fraction: Double(index) / Double(max(images.count, 1)), message: "\(index + 1)/\(images.count) · \(file.url.lastPathComponent)"))
+            do {
+                let (text, cached) = try autoreleasepool { try recognize(file, cache: cache, settings: settings) }
+                report.images.append(TextImage(file: file, content: text))
+                if cached { report.cacheHits += 1 }
+            } catch is CancellationError { throw CancellationError() }
+            catch { report.warnings.append("\(file.url.lastPathComponent): \(error.localizedDescription)") }
+        }
+        try finalize(&report)
+        progress(DuplicateProgress(fraction: 1, message: L("Готово", "Done")))
+        return report
+    }
+
+    private static func collectImages(_ roots: [URL], recursive: Bool) throws -> ([DuplicateFile], ImageTextReport) {
         var collected = DuplicateReport()
         let files = try DuplicateEngine.collect(roots, recursive: recursive, report: &collected)
         var report = ImageTextReport(warnings: collected.warnings)
@@ -108,24 +150,76 @@ enum ImageTextEngine {
             return type.conforms(to: .image)
         }
         report.skipped = files.count - images.count + collected.skippedLinks
-        for (index, file) in images.enumerated() {
+        return (images, report)
+    }
+
+    private struct Outcome: Sendable {
+        let index: Int
+        var image: TextImage?
+        var cached = false
+        var warning: String?
+    }
+
+    /// Bound decoded images and Vision requests, including on Macs with 8 GB RAM.
+    /// Each child owns its request; only value results return to the coordinator.
+    static func scanConcurrent(_ roots: [URL], recursive: Bool, cache: URL?, concurrency: Int = 2,
+                               progress: @Sendable (DuplicateProgress) -> Void = { _ in }) async throws -> ImageTextReport {
+        progress(DuplicateProgress(fraction: 0, message: L("Чтение списка файлов…", "Reading the file list…")))
+        let (images, initial) = try collectImages(roots, recursive: recursive)
+        var report = initial
+        guard !images.isEmpty else {
             try Task.checkCancellation()
-            progress(DuplicateProgress(fraction: Double(index) / Double(max(images.count, 1)), message: "\(index + 1)/\(images.count) · \(file.url.lastPathComponent)"))
-            do {
-                let (text, cached) = try autoreleasepool { try recognize(file, cache: cache) }
-                report.images.append(TextImage(file: file, content: text))
-                if cached { report.cacheHits += 1 }
-            } catch is CancellationError { throw CancellationError() }
-            catch { report.warnings.append("\(file.url.lastPathComponent): \(error.localizedDescription)") }
+            progress(DuplicateProgress(fraction: 1, message: L("Готово", "Done")))
+            return report
         }
+        let settings = try Settings()
+        let limit = min(2, max(1, concurrency))
+        var outcomes = [Outcome]()
+        try await withThrowingTaskGroup(of: Outcome.self) { group in
+            func enqueue(_ index: Int) {
+                let file = images[index]
+                group.addTask {
+                    try Task.checkCancellation()
+                    do {
+                        let (text, cached) = try autoreleasepool { try recognize(file, cache: cache, settings: settings) }
+                        return Outcome(index: index, image: TextImage(file: file, content: text), cached: cached)
+                    } catch is CancellationError { throw CancellationError() }
+                    catch { return Outcome(index: index, warning: "\(file.url.lastPathComponent): \(error.localizedDescription)") }
+                }
+            }
+            var next = 0
+            while next < min(limit, images.count) { enqueue(next); next += 1 }
+            var lastProgress = Date.distantPast
+            while let outcome = try await group.next() {
+                try Task.checkCancellation()
+                outcomes.append(outcome)
+                let now = Date()
+                if now.timeIntervalSince(lastProgress) >= 0.1 {
+                    progress(DuplicateProgress(fraction: Double(outcomes.count) / Double(images.count),
+                        message: "\(outcomes.count)/\(images.count) · \(images[outcome.index].url.lastPathComponent)"))
+                    lastProgress = now
+                }
+                if next < images.count { enqueue(next); next += 1 }
+            }
+        }
+        // Completion order must not change the visible order or warning order.
+        for outcome in outcomes.sorted(by: { $0.index < $1.index }) {
+            if let image = outcome.image { report.images.append(image) }
+            if outcome.cached { report.cacheHits += 1 }
+            if let warning = outcome.warning { report.warnings.append(warning) }
+        }
+        try finalize(&report)
+        progress(DuplicateProgress(fraction: 1, message: L("Готово", "Done")))
+        return report
+    }
+
+    private static func finalize(_ report: inout ImageTextReport) throws {
         // Cached or newly recognized results must still refer to the scanned files.
         report.images = report.images.filter { image in
             do { try DuplicateEngine.assertUnchanged(image.file); return true }
             catch { report.warnings.append("\(image.file.url.lastPathComponent): \(error.localizedDescription)"); return false }
         }
         try Task.checkCancellation()
-        progress(DuplicateProgress(fraction: 1, message: L("Готово", "Done")))
-        return report
     }
 }
 

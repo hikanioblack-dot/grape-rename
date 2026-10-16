@@ -12,6 +12,7 @@ struct ContentView: View {
     @State private var insertion: FileInsertion?
     var body: some View {
         editor
+            .disabled(model.importing)
             .background(Color(nsColor: .windowBackgroundColor))
             .background(PreviewBridge(model: model).frame(width: 0, height: 0))
             .onDrop(of: [UTType.fileURL], isTargeted: $dropTargeted, perform: model.acceptDrop)
@@ -23,6 +24,15 @@ struct ContentView: View {
                         .padding(8).allowsHitTesting(false)
                 }
             }
+            .overlay {
+                if model.importing {
+                    VStack(spacing: 14) {
+                        ProgressView()
+                        Text(model.importMessage).font(.callout)
+                        Button(L("Отменить импорт", "Cancel Import")) { model.cancelImport() }
+                    }.padding(28).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                }
+            }
             .alert(L("Ошибка", "Error"), isPresented: $model.showError) { Button(L("Понятно", "OK"), role: .cancel) {} } message: { Text(model.errorMessage) }
             .sheet(item: $model.duplicateMode) { DuplicateFinderView(model: model, mode: $0) }
             .sheet(isPresented: $model.showImageTextSearch) { ImageTextSearchView(model: model) }
@@ -30,23 +40,24 @@ struct ContentView: View {
             .sheet(isPresented: $savePreset) { presetSheet }
             .toolbar {
                 if !model.files.isEmpty {
-                    ToolbarItem(placement: .navigation) { Button(action: model.reset) { Image(systemName: "chevron.left") }.help(L("Новый набор файлов", "Choose a new batch")) }
+                    ToolbarItem(placement: .navigation) { Button(action: model.reset) { Image(systemName: "chevron.left") }.disabled(model.busy).help(L("Новый набор файлов", "Choose a new batch")) }
                     ToolbarItem(placement: .principal) {
                         Text(model.origin).font(.headline).lineLimit(1).truncationMode(.middle)
                             .padding(.horizontal, 12).frame(maxWidth: 300).fixedSize(horizontal: false, vertical: true).help(model.origin)
                     }
                     ToolbarItem { Button { model.preview.toggle() } label: { Image(systemName: "eye") }.help(L("Просмотр · Пробел", "Quick Look · Space")) }
-                    ToolbarItem { Button(action: model.undo) { Image(systemName: "arrow.uturn.backward") }.disabled(model.undoRecord == nil || !model.persistenceError.isEmpty).help(L("Отменить последнее переименование", "Undo the last rename")) }
+                    ToolbarItem { Button(action: model.undo) { Image(systemName: "arrow.uturn.backward") }.disabled(model.busy || model.undoRecord == nil || !model.persistenceError.isEmpty).help(L("Отменить последнее переименование", "Undo the last rename")) }
                 }
                 ToolbarItem {
                     Button { model.showInspector.toggle() } label: { Image(systemName: "sidebar.right") }
                         .help(model.showInspector ? L("Скрыть предпросмотр и информацию", "Hide Preview and Information") : L("Показать предпросмотр и информацию", "Show Preview and Information"))
                 }
-                ToolbarItem { Button { model.showHistory = true } label: { Image(systemName: "clock.arrow.circlepath") }.help(L("История переименований", "Rename history")) }
+                ToolbarItem { Button { model.showHistory = true } label: { Image(systemName: "clock.arrow.circlepath") }.disabled(model.busy).help(L("История переименований", "Rename history")) }
             }
             .onAppear {
+                AppMenuOrganizer.shared.install()
                 let demoPath = ProcessInfo.processInfo.environment["GRAPE_TEST_FILES"] ?? Bundle.main.object(forInfoDictionaryKey: "GrapeTestFiles") as? String
-                if model.files.isEmpty, let path = demoPath { model.load([URL(fileURLWithPath: path)], folder: true) }
+                if model.files.isEmpty, let path = demoPath { model.importFiles([URL(fileURLWithPath: path)]) }
                 model.resizeWindow(loaded: !model.files.isEmpty)
             }
     }
@@ -269,11 +280,11 @@ struct ContentView: View {
     private var footer: some View {
         HStack(spacing: 18) {
             VStack(alignment: .leading, spacing: 5) {
-                if let warning = model.validation { Label(warning, systemImage: "exclamationmark.triangle").foregroundStyle(.orange).font(.caption).lineLimit(2) }
+                if model.importing { Text(model.importMessage).font(.callout).foregroundStyle(.secondary) }
+                else if let warning = model.validation { Label(warning, systemImage: "exclamationmark.triangle").foregroundStyle(.orange).font(.caption).lineLimit(2) }
                 else if !model.message.isEmpty { Label(model.message, systemImage: "checkmark.circle.fill").foregroundStyle(.green).font(.caption).lineLimit(2) }
                 else {
                     Text(L("К переименованию: \(model.changes)", "Ready to rename: \(model.changes)")).font(.system(size: 12, weight: .medium))
-                    Text(L("Пробел — быстрый просмотр", "Space — Quick Look")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
             Spacer(minLength: 8)

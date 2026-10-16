@@ -123,12 +123,13 @@ final class DuplicateSearch: ObservableObject {
 
 struct DuplicateFinderView: View {
     @ObservedObject var model: Model
-    let mode: DuplicateMode
+    @State private var mode: DuplicateMode
     @StateObject private var search: DuplicateSearch
     @Environment(\.dismiss) private var dismiss
     @State private var confirmTrash = false
     init(model: Model, mode: DuplicateMode) {
-        self.model = model; self.mode = mode
+        self.model = model
+        _mode = State(initialValue: mode)
         _search = StateObject(wrappedValue: DuplicateSearch(files: model.files))
     }
     var body: some View {
@@ -156,6 +157,7 @@ struct DuplicateFinderView: View {
             Divider()
             footer
         }.frame(width: 1000, height: 700)
+            .onChange(of: mode) { search.invalidate() }
             .onChange(of: search.recursive) { search.invalidate() }
             .onChange(of: search.similarity) { search.invalidate() }
             .onDisappear { search.cancel() }
@@ -175,16 +177,16 @@ struct DuplicateFinderView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(mode.title).font(.title2.weight(.semibold))
-                    Text(mode == .exact
-                        ? L("Одинаковый размер → SHA-256 → сравнение байтов.", "Same size → SHA-256 → byte-for-byte verification.")
-                        : L("Визуальное сходство. Похожие кадры могут отличаться — проверьте их перед удалением.", "Visual similarity. Related shots can differ — review them before removing files."))
-                        .font(.caption).foregroundStyle(.secondary)
+                    Text(L("Найти и изменить медиафайлы", "Find and Modify Media Files")).font(.title2.weight(.semibold))
                 }
                 Spacer()
                 Button { dismiss() } label: { Image(systemName: "xmark") }.buttonStyle(.plain).disabled(search.running)
                     .help(L("Закрыть", "Close"))
             }
+            Picker(L("Инструмент", "Tool"), selection: $mode) {
+                Text(DuplicateMode.exact.title).tag(DuplicateMode.exact)
+                Text(DuplicateMode.similar.title).tag(DuplicateMode.similar)
+            }.pickerStyle(.segmented).labelsHidden().disabled(search.running)
             HStack(spacing: 12) {
                 Text(search.roots.isEmpty ? L("Набор не выбран", "No files selected")
                     : (search.roots.count == 1 ? search.roots[0].lastPathComponent : L("Выбрано объектов: \(search.roots.count)", "Selected items: \(search.roots.count)")))

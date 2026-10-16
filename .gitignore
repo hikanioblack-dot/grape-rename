@@ -8,3 +8,11 @@ dist/
 .swiftpm/
 .vscode/
 .idea/
+
+# Local Xcode state
+DerivedData/
+xcuserdata/
+*.xcuserstate
+
+# Disposable review apps, synthetic files, state, and screenshots
+/Review/

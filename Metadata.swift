@@ -3,17 +3,17 @@ import ImageIO
 import UniformTypeIdentifiers
 import CoreGraphics
 
-struct MetadataField: Identifiable {
+struct MetadataField: Identifiable, Sendable {
     var id: String { key }
     let key: String
     let value: String
 }
-struct MetadataSection: Identifiable {
+struct MetadataSection: Identifiable, Sendable {
     var id: String { title }
     let title: String
     let fields: [MetadataField]
 }
-struct MetadataSnapshot {
+struct MetadataSnapshot: Sendable {
     var captureDate: Date?
     var captureRaw: String?
     var captureOffset: String?

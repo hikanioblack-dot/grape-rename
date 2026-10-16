@@ -1,8 +1,8 @@
-# Grape Rename 1.0.10
+# Grape Rename 1.1.2
 
 A native batch renaming app for macOS Tahoe 26 or later and Apple Silicon.
 
-The version is available in Help → Grape Rename Version and Grape Rename → About Grape Rename. Both open the system panel with the icon, version and build number. Versions follow 1.0.x, where x matches the build number; the current build is 10. Values come from Info.plist.
+The version is available in Help → Grape Rename Version and Grape Rename → About Grape Rename. Both open the system panel with the icon, version and build number. Versions follow 1.0.x, where x matches the build number; the current build is 11. Values come from Info.plist.
 
 ## Usage
 
@@ -26,7 +26,7 @@ The interface language follows your macOS settings automatically. History and pr
 
 ## Tools: duplicates and similar photos
 
-The **Tools** menu offers two separate searches. Files from the main list are selected initially; you can choose other files or folders in the search window. Folder scans can include subfolders. Hidden files and symbolic links are skipped; multiple hard links to the same file count once.
+Open **Tools → Find and Modify Media Files…** and choose exact duplicates or similar photos. Files from the main list are selected initially; you can choose other files or folders in the search window. Folder scans can include subfolders. Hidden files and symbolic links are skipped; multiple hard links to the same file count once.
 
 **Exact duplicates:** size filtering, streaming SHA-256 and byte-for-byte verification. Names, extensions and dates may differ.
 
@@ -46,13 +46,13 @@ The files' modification dates are preserved. Renaming may change the parent fold
 
 ## Text in images
 
-Open **Tools → Find Text in Images…** to scan images or folders locally with Apple Vision. No metadata is needed. Only the first page/frame of multipage or animated images is scanned. Unreadable and corrupt images are listed separately.
+Open **Tools → Find Text in Media Files…** to scan images or folders locally with Apple Vision. No metadata is needed. Only the first page/frame of multipage or animated images is scanned. Unreadable and corrupt images are listed separately.
 
 Switch between **With Text**, **Lots of Text**, **No Text Detected** and **All Images** without rescanning. Adjust the minimum non-whitespace character and line counts for Lots of Text. Search for a word or phrase without case sensitivity. The right sidebar shows a preview and recognized text, with a copy button.
 
 Text does not prove an image is a screenshot. Document photos also contain text, and small or blurry text may be missed. No Text Detected is not a guarantee that an image contains no writing.
 
-Check files and use **Selected Files…** to copy or move them to a folder, or move them to Trash. Existing destination names are never overwritten. **All Matches to Trash…** targets only the current filter and query results and asks for confirmation with the count. Unlike duplicate search, no copy is protected: these are the original matching images. Files are checked for changes before actions. Restore trashed files in Finder; rename history does not undo moving or deleting images.
+Check files and use the main **Move Selected to Trash…** button for checked files only; copying and moving to a folder are in **Actions…**. Existing destination names are never overwritten. **Actions → All Filtered Results to Trash…** targets only the current filter and query results and asks for confirmation with the count. Unlike duplicate search, no copy is protected: these are the original matching images. Files are checked for changes before actions. Restore trashed files in Finder; rename history does not undo moving or deleting images.
 
 Scanning runs in the background and can be stopped. Optional local caching stores recognized text; disable it or use **Clear Cache** to delete it. Files and text are never uploaded. Scanning preserves image contents and modification dates.
 

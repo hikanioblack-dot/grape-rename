@@ -2,7 +2,7 @@ import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
 
-struct FileRow: Identifiable {
+struct FileRow: Identifiable, Sendable {
     let id = UUID()
     var url: URL
     var stamp: FileStamp
@@ -64,6 +64,11 @@ final class Model: ObservableObject {
     @Published var showImageTextSearch = false
     @Published var showInspector = true
     @Published var persistenceError = ""
+    @Published var importing = false
+    @Published var importMessage = ""
+    private(set) var importRevision = UUID()
+    private var importWorker: Task<[FileRow], Error>?
+    private var fileChooser: NSOpenPanel?
     @Published var busy = false
     @Published var origin = ""
 
@@ -88,7 +93,14 @@ final class Model: ObservableObject {
         var components: [String] = []
         if !options.prefix.isEmpty { components.append(options.prefix) }
         if options.useShotDate, let date = row.metadata.captureDate { components.append(options.shotFormat.string(date)) }
-        if options.numbering { components.append(String(format: "%0*d", options.digits, options.start + index)) }
+        if options.numbering {
+            // Preview is evaluated before validation, including while editing a number.
+            guard (0...999_999_999).contains(options.start), (1...8).contains(options.digits), index >= 0 else { return "" }
+            let (number, overflow) = options.start.addingReportingOverflow(index)
+            guard !overflow else { return "" }
+            let text = String(number)
+            components.append(String(repeating: "0", count: max(0, options.digits - text.count)) + text)
+        }
         if options.keepName {
             let original = options.find.isEmpty ? row.originalStem : row.originalStem.replacingOccurrences(of: options.find, with: options.replacement, options: options.caseInsensitive ? [.caseInsensitive] : [])
             if !original.isEmpty { components.append(original) }
@@ -99,6 +111,7 @@ final class Model: ObservableObject {
     }
     var plan: [RenameStep] { files.enumerated().map { i, row in RenameStep(source: row.url, destination: row.url.deletingLastPathComponent().appendingPathComponent(newName(row, index: i)), stamp: row.stamp) } }
     var validation: String? {
+        if importing { return nil }
         if !persistenceError.isEmpty { return persistenceError }
         if files.isEmpty { return nil }
         if options.start < 0 || options.start > 999_999_999 || !(1...8).contains(options.digits) { return L("Проверьте начальный номер и количество цифр.", "Check the starting number and number of digits.") }
@@ -110,31 +123,79 @@ final class Model: ObservableObject {
     func fail(_ error: Error) { errorMessage = error.localizedDescription; showError = true }
 
     func choose(folder: Bool, append: Bool = false) {
+        guard !busy, fileChooser == nil else { return }
+        let revision = importRevision
         let panel = NSOpenPanel()
         panel.title = folder ? L("Выберите папку", "Choose a folder") : L("Выберите файлы", "Choose files")
         panel.prompt = L("Открыть", "Open")
         panel.canChooseFiles = !folder; panel.canChooseDirectories = folder; panel.allowsMultipleSelection = !folder
         panel.message = folder ? L("Файлы внутри папки, без вложенных папок.", "Files in this folder, excluding subfolders.") : L("Выберите файлы для переименования.", "Choose files to rename.")
+        fileChooser = panel
         panel.begin { [weak self] result in
-            guard result == .OK else { return }
-            Task { @MainActor in self?.load(panel.urls, folder: folder, append: append) }
+            Task { @MainActor in
+                guard let self else { return }
+                self.fileChooser = nil
+                guard result == .OK, !self.busy, self.importRevision == revision else { return }
+                self.importFiles(panel.urls, append: append)
+            }
         }
     }
+    /// UI entry point: enumeration, stat and metadata reading stay off MainActor.
+    @discardableResult
+    func importFiles(_ urls: [URL], append: Bool = false,
+                     reader: @escaping @Sendable ([URL], Set<String>, @Sendable (String) -> Void) throws -> [FileRow] = { try FileImport.read($0, $1, $2) }) -> Task<Void, Never>? {
+        guard !busy || importing else { return nil }
+        cancelImport()
+        let revision = UUID(); importRevision = revision
+        let excluded = Set(append ? files.map { $0.url.path } : [])
+        importing = true; busy = true
+        importMessage = L("Чтение файлов…", "Reading files…")
+        let update: @Sendable (String) -> Void = { [weak self] message in
+            guard let self else { return }
+            Task { @MainActor in
+                if self.importing, self.importRevision == revision { self.importMessage = message }
+            }
+        }
+        let worker = Task.detached(priority: .utility) { try reader(urls, excluded, update) }
+        importWorker = worker
+        return Task { [weak self] in
+            do {
+                let rows = try await worker.value
+                guard let self, self.importing, self.importRevision == revision else { return }
+                try self.applyImported(rows, append: append)
+                self.finishImport()
+            } catch {
+                guard let self, self.importing, self.importRevision == revision else { return }
+                self.finishImport()
+                if !(error is CancellationError) { self.fail(error) }
+            }
+        }
+    }
+    func cancelImport() {
+        importWorker?.cancel(); importWorker = nil; importRevision = UUID()
+        if importing { finishImport() }
+    }
+    private func finishImport() {
+        importWorker = nil; importing = false; busy = false; importMessage = ""
+    }
+    /// Synchronous helper for CLI fixtures/tests; application UI uses importFiles.
     func load(_ urls: [URL], folder: Bool, append: Bool = false) {
+        guard !busy else { return }
         do {
-            let candidates = try FileImport.collect(urls)
-            var seen = Set(append ? files.map { $0.url.path } : [])
-            var loaded: [FileRow] = append ? files : []
-            for url in candidates where seen.insert(url.path).inserted { loaded.append(FileRow(url: url, stamp: try FileStamp(url))) }
-            guard !loaded.isEmpty else { throw RenameError.message(L("Нет обычных файлов. Скрытые файлы, ссылки и вложенные папки пропускаются.", "No regular files. Hidden files, symbolic links and subfolders are excluded.")) }
-            let priorCount = files.count
-            files = loaded
-            if !append { selection = nil; sortMode = .name; descending = false }
-            updateOrigin(); sort()
-            if !append { selection = files.first?.id }
-            message = append ? L("Добавлено: \(loaded.count - priorCount)", "Added: \(loaded.count - priorCount)") : ""
-
+            let excluded = Set(append ? files.map { $0.url.path } : [])
+            try applyImported(FileImport.read(urls, excluded, { _ in }), append: append)
         } catch { fail(error) }
+    }
+    private func applyImported(_ rows: [FileRow], append: Bool) throws {
+        var seen = Set(append ? files.map { $0.url.path } : [])
+        let added = rows.filter { seen.insert($0.url.path).inserted }
+        let loaded = (append ? files : []) + added
+        guard !loaded.isEmpty else { throw RenameError.message(L("Нет обычных файлов. Скрытые файлы, ссылки и вложенные папки пропускаются.", "No regular files. Hidden files, symbolic links and subfolders are excluded.")) }
+        files = loaded
+        if !append { selection = nil; sortMode = .name; descending = false }
+        updateOrigin(); sort()
+        if !append { selection = files.first?.id }
+        message = append ? L("Добавлено: \(added.count)", "Added: \(added.count)") : ""
     }
     func updateOrigin() {
         let parents = Set(files.map { $0.url.deletingLastPathComponent().path })
@@ -215,8 +276,13 @@ final class Model: ObservableObject {
         } catch { handleOperationError(error) }
     }
     private func updateRows(_ steps: [RenameStep]) {
-        // Match against the old array so swapped names don't update twice.
-        for i in files.indices { if let step = steps.first(where: { $0.source == files[i].url }) { files[i].url = step.destination } }
+        // Resolve old URLs once; publish one array rather than one change per file.
+        let destinations = Dictionary(steps.map { ($0.source, $0.destination) }, uniquingKeysWith: { first, _ in first })
+        var updated = files
+        for i in updated.indices {
+            if let destination = destinations[updated[i].url] { updated[i].url = destination }
+        }
+        files = updated
         updateOrigin()
     }
     private func handleOperationError(_ error: Error) {
@@ -250,7 +316,7 @@ final class Model: ObservableObject {
         store.state.presets.removeAll { $0.id == id }
         do { try store.save(); selectedPreset = nil; synchronizeStorage() } catch { store.state = old; fail(error) }
     }
-    func reset() { files = []; selection = nil; message = ""; origin = "" }
+    func reset() { cancelImport(); files = []; selection = nil; message = ""; origin = "" }
     func revealInspector() { showInspector = true }
     func resizeWindow(loaded: Bool) {
         guard !CommandLine.arguments.contains("--self-test"), !CommandLine.arguments.contains("--prepare-ui-test") else { return }
